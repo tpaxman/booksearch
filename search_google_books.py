@@ -5,7 +5,10 @@ import pandas as pd
 
 def search_google_books(query, langRestrict="en") -> pd.DataFrame:
     """ run a search on the Google Books API and return a clean table of results """
-    return _clean_search_results(_submit_search_query(query, langRestrict))
+    raw_results = _submit_search_query(query, langRestrict)
+    print(raw_results)
+    clean_results = _clean_search_results(raw_results)
+    return clean_results
 
 
 def _submit_search_query(query, langRestrict="en") -> pd.DataFrame:
@@ -13,10 +16,11 @@ def _submit_search_query(query, langRestrict="en") -> pd.DataFrame:
     url = f"https://www.googleapis.com/books/v1/volumes?q={query}&langRestrict={langRestrict}"
     data = requests.get(url).json()
     volumes = (x.get('volumeInfo') for x in data['items'])
-    return (pd
+    results = (pd
         .DataFrame(volumes)
         .query('language == @langRestrict') # filter again because Google API doesn't do it properly for some reason
     )
+    return results
 
 
 def _clean_search_results(results: pd.DataFrame) -> pd.DataFrame:
@@ -24,8 +28,10 @@ def _clean_search_results(results: pd.DataFrame) -> pd.DataFrame:
 
     isbns = (results
         .industryIdentifiers
+        .dropna()
         .explode()
         .apply(pd.Series)
+        [['type', 'identifier']] # because the previous step may generate an empty column called 0
         .set_index('type', append=True)
         .unstack()['identifier']
         .astype('string')
@@ -52,10 +58,21 @@ def _clean_search_results(results: pd.DataFrame) -> pd.DataFrame:
             "averageRating": "average_rating",
             "canonicalVolumeLink": "volume_link",
         })
-        .loc[:, ['title', 'author_primary', 'published_year', 'authors', 'subtitle', 
-                 'language', 'isbn_10', 'isbn_13', 'description', 'publisher', 
-                 'volume_link', 'small_image_link', 'image_link']
-        ]
+        [[
+            'title', 
+            'author_primary', 
+            'published_year', 
+            'authors', 
+            'subtitle', 
+            'language', 
+            'isbn_10', 
+            'isbn_13', 
+            'description', 
+            'publisher', 
+            'volume_link', 
+            'small_image_link', 
+            'image_link'
+        ]]
     )
 
     return clean_results
