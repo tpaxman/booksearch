@@ -7,8 +7,8 @@ import pandas as pd
 import numpy as np
 
 
-def search_abebooks(search_term: str) -> str:
-    search_term_quoted = quote(search_term)
+def search_abebooks(keywords: str) -> str:
+    search_term_quoted = quote(keywords)
     search_url = (
         "https://www.abebooks.com/servlet/SearchResults?" +
         '&'.join([
@@ -99,6 +99,8 @@ def search_abebooks(search_term: str) -> str:
             #"edition"
         ]]
         .assign(total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad)
+        .sort_values('total_price_cad')
+        [['title', 'author', 'total_price_cad', 'seller', 'about']]
     )
 
     return df_results
