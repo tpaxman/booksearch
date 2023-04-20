@@ -6,25 +6,35 @@ import re
 import pandas as pd
 import numpy as np
 
+pd.options.display.max_colwidth = 30
 
-def search_abebooks(keywords: str) -> str:
-    search_term_quoted = quote(keywords)
+def search_abebooks(keywords: str=None, title: str=None, author: str=None) -> str:
+
+    static_parameters = [
+        f"bi=0",
+        f"bx=off",
+        f"cm_sp=SearchF-_-Advs-_-Result",
+        f"ds=50",
+        f"n=100121503",
+        f"recentlyadded=all",
+        f"rollup=on",
+        f"sortby=17",
+        f"sts=t",
+        f"xdesc=off",
+        f"xpod=off",
+    ]
+
+    optional_parameters = [
+        f"kn={quote(keywords)}" if keywords else None,
+        f"tn={quote(title)}" if title else None,
+        f"an={quote(author)}" if author else None,
+    ]
+
+    all_parameters = static_parameters + [x for x in optional_parameters if x]
+
     search_url = (
         "https://www.abebooks.com/servlet/SearchResults?" +
-        '&'.join([
-            f"kn={search_term_quoted}",
-            f"bi=0",
-            f"bx=off",
-            f"cm_sp=SearchF-_-Advs-_-Result",
-            f"ds=50",
-            f"n=100121503",
-            f"recentlyadded=all",
-            f"rollup=on",
-            f"sortby=17",
-            f"sts=t",
-            f"xdesc=off",
-            f"xpod=off",
-        ])
+        '&'.join(all_parameters)
     )
     print(search_url)
     response = requests.get(search_url)
@@ -32,6 +42,10 @@ def search_abebooks(keywords: str) -> str:
 
     soup = BeautifulSoup(search_results_html, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
+
+    if not results_block:
+        return pd.DataFrame()
+
     result_items = results_block.find_all('li', attrs={'data-cy': 'listing-item'})
 
     result_items_data = []
@@ -82,30 +96,33 @@ def search_abebooks(keywords: str) -> str:
         })
         .assign(
             in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
-            price_cad = lambda t: t.price_usd.astype(float) * usd_to_cad_factor,
-            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_usd.astype(float).multiply(usd_to_cad_factor)),
+            price_cad = lambda t: t.price_usd.astype(float).multiply(usd_to_cad_factor).round(0).astype(int),
+            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_usd.astype(float).multiply(usd_to_cad_factor).round(0).astype(int)),
+            condition = lambda t: t.about.apply(get_condition),
         )
-        [[
-            "title",
-            "author",
-            "format",
-            "price_cad",
-            "shipping_cost_cad",
-            "seller",
-            "condition",
-            "about",
-            "publisher",
-            "date_published",
-            #"edition"
-        ]]
         .assign(total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad)
-        .sort_values('total_price_cad')
-        [['title', 'author', 'total_price_cad', 'seller', 'about']]
+
+        # for display
+        .sort_values('total_price_cad', ignore_index=True)
+        .assign(
+            seller = lambda t: np.where(t.in_edmonton, '* ' + t.seller, t.seller),
+        )
+        .rename(columns={
+            'price_cad': 'price',
+            'shipping_cost_cad': 'shipping'
+        })
+        [['title', 'author', 'price', 'shipping', 'seller', 'about', 'condition', 'format']]
     )
 
     return df_results
 
          
+def get_condition(about: str) -> str:
+    search_result = re.search(r'Condition:\s+(.*?)\.', about)
+    condition = search_result.group(1) if search_result else ''
+    return condition
+
+
 
 
 
