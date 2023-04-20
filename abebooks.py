@@ -4,6 +4,7 @@ from urllib.parse import quote
 from forex_python.converter import CurrencyRates
 import re
 import pandas as pd
+import numpy as np
 
 
 def search_abebooks(search_term: str) -> str:
@@ -25,10 +26,11 @@ def search_abebooks(search_term: str) -> str:
             f"xpod=off",
         ])
     )
+    print(search_url)
     response = requests.get(search_url)
     search_results_html = response.content
 
-    soup = BeautifulSoup(search_results_html)
+    soup = BeautifulSoup(search_results_html, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
     result_items = results_block.find_all('li', attrs={'data-cy': 'listing-item'})
 
@@ -79,8 +81,9 @@ def search_abebooks(search_term: str) -> str:
             "bookFormat": "format",
         })
         .assign(
+            in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
             price_cad = lambda t: t.price_usd.astype(float) * usd_to_cad_factor,
-            shipping_cost_cad = lambda t: t.shipping_cost_usd.astype(float) * usd_to_cad_factor
+            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_usd.astype(float).multiply(usd_to_cad_factor)),
         )
         [[
             "title",
@@ -93,8 +96,9 @@ def search_abebooks(search_term: str) -> str:
             "about",
             "publisher",
             "date_published",
-            "edition"
+            #"edition"
         ]]
+        .assign(total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad)
     )
 
     return df_results
