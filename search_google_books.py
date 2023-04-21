@@ -6,7 +6,6 @@ import pandas as pd
 def search_google_books(query, langRestrict="en") -> pd.DataFrame:
     """ run a search on the Google Books API and return a clean table of results """
     raw_results = _submit_search_query(query, langRestrict)
-    print(raw_results)
     clean_results = _clean_search_results(raw_results)
     return clean_results
 
