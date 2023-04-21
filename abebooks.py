@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from functools import partial, reduce
 
-pd.options.display.max_colwidth = 30
+pd.options.display.max_colwidth = 50
 
 def compose(*functions):
     def composed_function(seed):
@@ -28,11 +28,12 @@ SELLERS = {
     'the-bookseller': 51101471,
 }
 
-def search_abebooks(author: str=None, title: str=None, keywords: str=None, sellers: list=None, publisher: str=None) -> pd.DataFrame:
+def search_abebooks(**kwargs) -> pd.DataFrame:
+    df_results = run_abebooks_search(**kwargs)
+    display_results(df_results)
 
 
-    df_results = request_abebooks_search_results(author, title, keywords, sellers, publisher)
-
+def display_results(df_results: pd.DataFrame) -> None:
     if not df_results.empty:
 
         df_results_display = (
@@ -46,18 +47,22 @@ def search_abebooks(author: str=None, title: str=None, keywords: str=None, selle
                 'shipping_cost_cad': 'shipping',
                 'total_price_cad': 'total'
             })
-            [['title', 'author', 'price', 'total', 'seller', 'about', 'condition', 'format']]
+            [['title', 'author', 'price', 'total', 'seller', 'about', 'condition', 'binding']]
         )
 
-        print(title + '(' + author + ')')
         print(df_results_display)
         print('')
-    
 
-def request_abebooks_search_results(author: str=None, title: str=None, keywords: str=None, sellers: list=None, publisher: str=None) -> pd.DataFrame:
+def run_abebooks_search(
+    author: str=None,
+    title: str=None,
+    keywords: str=None,
+    sellers: list=None,
+    publisher: str=None,
+    binding: str=None,
+) -> pd.DataFrame:
 
     static_parameters = [
-        f"bi=0",
         f"bx=off",
         f"cm_sp=SearchF-_-Advs-_-Result",
         f"ds=50",
@@ -75,7 +80,8 @@ def request_abebooks_search_results(author: str=None, title: str=None, keywords:
         f"tn={quote(title)}" if title else None,
         f"an={quote(author)}" if author else None,
         (f"saction=allow&" + (f"&slist=" + '%2B'.join(map(str, sellers)))) if sellers else None,
-        f"&pn={quote(publisher)}" if publisher else None
+        f"pn={quote(publisher)}" if publisher else None,
+        f"bi={binding}" if binding else "bi=0"
     ]
 
     all_parameters = static_parameters + [x for x in optional_parameters if x]
@@ -101,7 +107,8 @@ def request_abebooks_search_results(author: str=None, title: str=None, keywords:
 
         # get all metadata
         metadata = {y.get('itemprop'): y.get('content') for y in x.find_all('meta')}
-        assert metadata['priceCurrency'] == 'USD', 'this thing is only set up to handle USD as the source currency'
+        currency = metadata['priceCurrency']
+        assert currency == 'USD', f'this thing is only set up to handle USD as the source currency, (What is {currency}?)'
 
         # get other pieces of data
         shipping_details = x.find('a', class_='item-shipping-dest').getText().strip()
@@ -110,7 +117,8 @@ def request_abebooks_search_results(author: str=None, title: str=None, keywords:
         #assert shipping_destination.lower().startswith('can'), 'this thing expects that everything is being shipped to Canada'
 
         shipping_cost_raw = x.find('span', class_='item-shipping').getText()
-        assert 'US$' in shipping_cost_raw, 'this thing is only set up to handle USD as the source currency'
+        shipping_cost_raw = 'US$ 0' if 'free' in shipping_cost_raw.lower() else shipping_cost_raw
+        assert 'US$' in shipping_cost_raw, f'this thing is only set up to handle USD as the source currency (dont understand {shipping_cost_raw})'
         shipping_cost_usd = (
             shipping_cost_raw
             .strip()
@@ -140,7 +148,7 @@ def request_abebooks_search_results(author: str=None, title: str=None, keywords:
             "price": "price_usd",
             "itemCondition": "condition",
             "bookEdition": "edition",
-            "bookFormat": "format",
+            "bookFormat": "binding",
         })
         .assign(
             in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
@@ -178,13 +186,12 @@ def get_condition(about: str) -> str:
 search_edmonton_bookstore = partial(search_abebooks, sellers=[19326])
 search_edmonton_stores = partial(search_abebooks, sellers=SELLERS.values())
 
+request_search_results_in_edmonton = partial(run_abebooks_search, sellers=SELLERS.values())
 
-request_search_results_in_edmonton = partial(request_abebooks_search_results, sellers=SELLERS.values())
 
-
-goodreads = pd.read_csv(r"C:\Users\tyler\Downloads\goodreads_library_export.csv", encoding='utf-8')
-want_to_buy = list(goodreads.loc[lambda t: t.Bookshelves.fillna('').str.contains('to-read') & ~t.Bookshelves.fillna('').str.contains('own')].set_index('Author')[['Title']].to_records())
-all_results = pd.concat([df for df in [abe.request_search_results_in_edmonton(author=author, title=title) for author, title in want_to_buy] if not df.empty])
+# goodreads = pd.read_csv(r"C:\Users\tyler\Downloads\goodreads_library_export.csv", encoding='utf-8')
+# want_to_buy = list(goodreads.loc[lambda t: t.Bookshelves.fillna('').str.contains('to-read') & ~t.Bookshelves.fillna('').str.contains('own')].set_index('Author')[['Title']].to_records())
+# all_results = pd.concat([df for df in [abe.request_search_results_in_edmonton(author=author, title=title) for author, title in want_to_buy] if not df.empty])
 
 
 
