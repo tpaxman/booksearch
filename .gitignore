@@ -2,3 +2,5 @@
 __pycache__
 exploration/
 .sw*
+outputs/
+inputs/
