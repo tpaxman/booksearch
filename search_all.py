@@ -10,6 +10,9 @@ def main():
     lookup_everything(author=args.author, title=args.title, keywords=args.keywords)
 
 
+# TODO: add amazon, indigo, kobo, etc.
+# TODO: shorten display when no results are available
+# TODO: make functions return actually blank dataframes. No use in putting in column names
 
 def lookup_everything(author: str=None, title: str=None, keywords: str=None):
 

@@ -5,6 +5,8 @@ import pandas as pd
 from typing import Callable
 import re
 
+# TODO: figure out why goodreads only returns 5 things
+
 def run_goodreads_search(search_string: str) -> pd.DataFrame:
 
     quoted_search_string = quote_plus(search_string)
@@ -44,7 +46,18 @@ def run_goodreads_search(search_string: str) -> pd.DataFrame:
 
     data = pd.DataFrame(result_items_data)
 
+    # TODO: figure out how to implement this re-filtering stuff
+    # data = (data
+    #     .loc[lambda t: t.title.apply(lambda x: string_contains_all_words(x, title))]
+    #     .loc[lambda t: t.author.apply(lambda x: string_contains_all_words(x, author))]
+    # )
+
     return data
+
+
+def string_contains_all_words(string: str, words: str) -> bool:
+    words_clean = re.findall(r'\w+', words)
+    return all(w.strip().lower() in string.lower() for w in words_clean)
 
 
 
