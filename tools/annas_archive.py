@@ -1,4 +1,5 @@
 import requests
+import re
 import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
@@ -15,12 +16,14 @@ def run_annas_archive_search(
 
     search_url = (
         "https://annas-archive.org/search?" + 
-        '&'.join([
+        '&'.join([x for x in [
             f"q={quoted_search_string}",
             f"lang={language}" if language else '',
             f"ext={filetype}" if filetype else '',
-            ])
+        ] if x])
     )
+
+    print(search_url)
 
     search_results_html = (requests
         .get(search_url)
@@ -31,25 +34,66 @@ def run_annas_archive_search(
     )
 
     soup = BeautifulSoup(search_results_html, features='html.parser')
-    result_items = soup.find_all('div', class_='h-[125]')
+
+    # remove all the "partial matches" from the soup
+    partmatch = [x for x in soup.find_all('div', class_='italic') if 'partial match' in x.getText()][0]
+    for div in partmatch.findNextSiblings():
+        div.decompose()
+
+    result_items = [x.find('a').find('div').findNextSibling() 
+                    for x in soup.find_all('div', class_='h-[125]')]
 
     # TODO: extract this dumb function
     get_text = lambda elem: elem.getText() if elem else ''
+    get_group = lambda result, group_id: result.group(group_id) if result else ''
 
     # TODO: add in link 
     # TODO: add in file extension
     result_items_data = []
-    for y in result_items:
-        x = y.find('a').find('div').findNextSibling()
-        filename = x.find('div', class_='text-xs')
+    for x in result_items:
+        file_details = x.find('div', class_='text-xs')
         publisher = x.find('div', class_='text-sm')
         author = x.find('div', class_='italic')
         title = x.find('h3')
+
+        file_details_text = get_text(file_details)
+
+        # filesize_mb = float(get_group(re.search(r'(\S+)MB', file_details_text), 1).replace('<', ''))
+        # item_language = get_group(re.search(r'^.*?\[(.*?)\].*MB', file_details_text), 1)
+        # item_filetype = get_group(re.search(r', (\w+), \S+MB', file_details_text), 1)
+
+        try:
+            filesize_mb = float(re.search(r'(\S+)MB', file_details_text).group(1).replace('<', ''))
+        except:
+            filesize_mb = 0
+
+        try:
+            item_language = re.search(r'^.*?\[(.*?)\].*MB', file_details_text).group(1)
+        except:
+            item_language = ''
+
+        try:
+            item_filetype = re.search(r'(\w+), \S+MB', file_details_text).group(1)
+        except:
+            item_filetype = ''
+
+        try:
+            filename = re.search(r'"(.+)"', file_details_text).group(1)
+        except:
+            filename = ''
+
+
+        # TODO: add a second filter on the returned data based on the input arguments just
+        # to make it extra sure
+
         result_items_data.append({
             "title": get_text(title),
             "author": get_text(author),
-            "filename": get_text(filename),
             "publisher": get_text(publisher),
+            "filesize_mb": filesize_mb,
+            "language": item_language,
+            "filetype": item_filetype,
+            "filename": filename,
         })
 
     data = pd.DataFrame(result_items_data)
@@ -57,16 +101,3 @@ def run_annas_archive_search(
     return data
 
 
-
-    # for i, y in enumerate(result_items):
-    #     x = y.find('a').find('div').findNextSibling()
-
-    # for i, y in enumerate(result_items):
-    #     print(i+1, y.getText().strip())
-    #     a = y.find('a')
-    #     if a:
-    #         x = a.find('div').findNextSibling()
-    #         filename = x.find('div', class_='text-xs')
-    #         publisher = x.find('div', class_='text-sm')
-    #         author = x.find('div', class_='italic')
-    #         title = x.find('h3')
