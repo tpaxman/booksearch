@@ -10,6 +10,7 @@ def run_goodreads_search(search_string: str) -> pd.DataFrame:
     quoted_search_string = quote_plus(search_string)
     #search_url = f"https://www.goodreads.com/search?q={quoted_search_string}"
     search_url = f"https://www.goodreads.com/search?utf8=%E2%9C%93&q={quoted_search_string}&search_type=books&search%5Bfield%5D=on"
+    print(f"GOODREADS: {search_url}")
     response = requests.get(search_url)
     search_results_html = response.content
     soup = BeautifulSoup(search_results_html, features='html.parser')

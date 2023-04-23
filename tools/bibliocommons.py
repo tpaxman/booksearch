@@ -31,6 +31,7 @@ def generate_bibliocommons_search_engine(library_subdomain: str) -> Callable:
         quoted_search_string = quote_plus(search_string)
 
         search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
+        print(f"{library_subdomain.upper()}: {search_url}")
 
         response = requests.get(search_url)
         search_results_html = response.content

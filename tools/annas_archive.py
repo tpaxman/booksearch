@@ -22,6 +22,7 @@ def run_annas_archive_search(
             f"ext={filetype}" if filetype else '',
         ] if x])
     )
+    print(f"ANNA'S ARCHIVE: {search_url}")
 
     search_results_html = (requests
         .get(search_url)

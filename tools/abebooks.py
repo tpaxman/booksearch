@@ -55,6 +55,7 @@ def run_abebooks_search(
         "https://www.abebooks.com/servlet/SearchResults?" +
         '&'.join(all_parameters)
     )
+    print(f"ABEBOOKS: {search_url}")
 
     response = requests.get(search_url)
     search_results_html = response.content
