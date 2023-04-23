@@ -6,15 +6,17 @@ def main():
     parser.add_argument("--author", "-a")
     parser.add_argument("--title", "-t")
     parser.add_argument("--keywords", "-k")
+    parser.add_argument('--row_limit', '-n')
     args = parser.parse_args()
-    lookup_everything(author=args.author, title=args.title, keywords=args.keywords)
+    lookup_everything(author=args.author, title=args.title, keywords=args.keywords, row_limit=args.row_limit)
 
 
 # TODO: add amazon, indigo, kobo, etc.
 # TODO: shorten display when no results are available
 # TODO: make functions return actually blank dataframes. No use in putting in column names
+# TODO: allow adding keywords, publishers, etc.
 
-def lookup_everything(author: str=None, title: str=None, keywords: str=None):
+def lookup_everything(author: str=None, title: str=None, keywords: str=None, row_limit: int=None):
 
     search_string = ' '.join(filter(bool, [author, title, keywords]))
 
@@ -29,7 +31,7 @@ def lookup_everything(author: str=None, title: str=None, keywords: str=None):
     for k, v in datasets.items():
         print('-'*100)
         print(k.upper() + ':' + '\n')
-        print(v.head(8) if not v.empty else "no results")
+        print((v.head(row_limit) if row_limit else v) if not v.empty else "no results")
         print('\n\n')
 
 

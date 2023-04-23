@@ -4,6 +4,8 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 
+# TODO: filter out book review and such by specifying "BOOK" type
+# TODO: filter to english only by default
 
 def run_annas_archive_search(
     search_string: str,

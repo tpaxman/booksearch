@@ -6,6 +6,7 @@ from typing import Callable
 import re
 
 # TODO: figure out why goodreads only returns 5 things
+# TODO: sort by most ratings maybe? Getting some weird values otherwise
 
 def run_goodreads_search(search_string: str) -> pd.DataFrame:
 

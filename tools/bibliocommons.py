@@ -15,6 +15,7 @@ VALID_SEARCH_TERMS = [
     'isolanguage',
 ]
 
+# TODO: calculate waiting period for books
 # TODO: make this exhaustive
 # VALID_FORMATCODES = ['BK', 'AB', 'EBOOK']
 

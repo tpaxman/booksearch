@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 from functools import partial
 
+# TODO: add a 'strict' filter mode where the title inputs are quoted
+
 USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
 pd.options.display.max_colwidth = 50
