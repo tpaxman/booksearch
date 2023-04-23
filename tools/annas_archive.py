@@ -23,8 +23,6 @@ def run_annas_archive_search(
         ] if x])
     )
 
-    print(search_url)
-
     search_results_html = (requests
         .get(search_url)
         .content

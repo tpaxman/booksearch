@@ -27,16 +27,22 @@ def generate_bibliocommons_search_engine(library_subdomain: str) -> Callable:
         assert not invalid_args, f"invalid parameters: {invalid_args}"
 
         # TODO: make this more flexible to allow OR
-        search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items())
+        search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items() if v)
         quoted_search_string = quote_plus(search_string)
 
         search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
+        print(search_url)
 
         response = requests.get(search_url)
         search_results_html = response.content
         soup = BeautifulSoup(search_results_html, features='html.parser')
 
-        result_items = soup.find('ul', class_='results').find_all('li', class_='cp-search-result-item')
+        try:
+            result_items = soup.find('ul', class_='results').find_all('li', class_='cp-search-result-item')
+        except:
+            # TODO: find more elegant way to handle zero results
+            return pd.DataFrame()
+
 
         get_text = lambda elem: elem.getText() if elem else ''
 
