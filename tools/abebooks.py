@@ -143,8 +143,6 @@ def get_condition(about: str) -> str:
     return condition
 
 
-search_edmonton_bookstore = partial(search_abebooks, sellers=[19326])
-search_edmonton_stores = partial(search_abebooks, sellers=SELLERS.values())
 
 request_search_results_in_edmonton = partial(run_abebooks_search, sellers=SELLERS.values())
 
@@ -152,6 +150,8 @@ def search_abebooks(**kwargs) -> pd.DataFrame:
     df_results = run_abebooks_search(**kwargs)
     display_results(df_results)
 
+search_edmonton_bookstore = partial(search_abebooks, sellers=[19326])
+search_edmonton_stores = partial(search_abebooks, sellers=SELLERS.values())
 
 def display_results(df_results: pd.DataFrame) -> None:
     if not df_results.empty:
