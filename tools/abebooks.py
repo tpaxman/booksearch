@@ -106,6 +106,7 @@ def run_abebooks_search(
 
     df_results = (pd
         .DataFrame(result_items_data)
+        .fillna('')
         .rename(columns={
             "name": "title",
             "datePublished": "date_published",
