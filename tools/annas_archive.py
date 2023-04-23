@@ -34,9 +34,14 @@ def run_annas_archive_search(
     soup = BeautifulSoup(search_results_html, features='html.parser')
 
     # remove all the "partial matches" from the soup
-    partmatch = [x for x in soup.find_all('div', class_='italic') if 'partial match' in x.getText()][0]
-    for div in partmatch.findNextSiblings():
-        div.decompose()
+    try:
+        partmatch = [x for x in soup.find_all('div', class_='italic') if 'partial match' in x.getText()][0]
+        for div in partmatch.findNextSiblings():
+            div.decompose()
+    except:
+        # TODO: this is bad, we should probably do another check instead with the result items first
+        # TODO: make this dependent on the output columns somehow (also for all the other toolsw
+        return pd.DataFrame(columns=["title", "author", "publisher", "filesize_mb", "language" , "filetype", "filename"])
 
     result_items = [x.find('a').find('div').findNextSibling() 
                     for x in soup.find_all('div', class_='h-[125]')]

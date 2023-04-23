@@ -14,7 +14,10 @@ def run_goodreads_search(search_string: str) -> pd.DataFrame:
     search_results_html = response.content
     soup = BeautifulSoup(search_results_html, features='html.parser')
 
-    result_items = soup.find('table', class_='tableList').find_all('tr')
+    try:
+        result_items = soup.find('table', class_='tableList').find_all('tr')
+    except:
+        return pd.DataFrame(columns=['title', 'author', 'avg_rating', 'num_ratings', 'link'])
 
     get_text = lambda elem: elem.getText() if elem else ''
 

@@ -1,16 +1,29 @@
 from tools import abebooks, bibliocommons, goodreads, annas_archive
 
+
 def lookup_everything(author: str=None, title: str=None, keywords: str=None):
 
     search_string = ' '.join(filter(bool, [author, title, keywords]))
 
-    abebooks_results = abebooks.run_abebooks_search(author=author, title=title, keywords=keywords)
-    epl_results = bibliocommons.search_epl(author=author, title=title, anywhere=keywords)
-    cpl_results = bibliocommons.search_cpl(author=author, title=title, anywhere=keywords, formatcode=['EBOOK'])
-    goodreads_results = goodreads.run_goodreads_search(search_string)
-    annas_archive_results = annas_archive.run_annas_archive_search(search_string=search_string) [['title', 'author', 'filetype', 'filesize_mb']]
+    datasets = {
+        "abebooks": abebooks.run_abebooks_search(author=author, title=title, keywords=keywords)[['title', 'author', 'binding', 'condition', 'seller', 'price_cad', 'total_price_cad']],
+        "epl": bibliocommons.search_epl(author=author, title=title, anywhere=keywords)[['title', 'author', 'format_description', 'availability_status', 'hold_counts']],
+        "cpl": bibliocommons.search_cpl(author=author, title=title, anywhere=keywords, formatcode=['EBOOK'])[['title', 'author', 'format_description', 'availability_status', 'hold_counts']],
+        "goodreads": goodreads.run_goodreads_search(search_string)[['title', 'author', 'avg_rating', 'num_ratings']],
+        "annas": annas_archive.run_annas_archive_search(search_string=search_string)[['title', 'author', 'filetype', 'filesize_mb']],
+    }
 
-    return (abebooks_results, epl_results, cpl_results, goodreads_results, annas_archive_results)
+    for k, v in datasets.items():
+        print('-'*100)
+        print(k.upper() + ':' + '\n')
+        print(v.head(8) if not v.empty else "no results")
+        print('\n\n')
+
+# TODO: bug - CPL and ANNAS are getting no results for: lookup_everything(author='rowling', title='harry potter chamber secrets')
+# TODO: bug - ABEBOOKS fails on lookup_everything(author='tartt', title='goldfinch')
+
+
+
 
 
 

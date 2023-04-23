@@ -62,7 +62,10 @@ def run_abebooks_search(
     results_block = soup.find('ul', class_='result-block', id='srp-results')
 
     if not results_block:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=(['isbn', 'title', 'author', 'about', 'publisher', 'date_published',
+       'binding', 'price_usd', 'priceCurrency', 'condition', 'availability',
+       'seller', 'shipping_details', 'shipping_cost_usd', 'edition',
+       'in_edmonton', 'price_cad', 'shipping_cost_cad', 'total_price_cad']))
 
     result_items = results_block.find_all('li', attrs={'data-cy': 'listing-item'})
 
