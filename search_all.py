@@ -29,11 +29,6 @@ def lookup_everything(author: str=None, title: str=None, keywords: str=None):
         print(v.head(8) if not v.empty else "no results")
         print('\n\n')
 
-# TODO: bug - CPL and ANNAS are getting no results for: lookup_everything(author='rowling', title='harry potter chamber secrets')
-# TODO: bug - ABEBOOKS fails on lookup_everything(author='tartt', title='goldfinch')
-
-
-
 
 
 if __name__ == '__main__':
