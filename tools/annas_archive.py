@@ -45,10 +45,10 @@ def run_annas_archive_search(
             # TODO: make this dependent on the output columns somehow (also for all the other toolsw
             return pd.DataFrame(columns=["title", "author", "publisher", "filesize_mb", "language" , "filetype", "filename"])
 
-    try:
-        result_items = [x.find('a').find('div').findNextSibling() 
-                        for x in soup.find_all('div', class_='h-[125]')]
-    except:
+    result_items = [x.find('a').find('div').findNextSibling() 
+                    for x in soup.find_all('div', class_='h-[125]')]
+
+    if not result_items:
         # TODO: remove this repeated thing
         return pd.DataFrame(columns=["title", "author", "publisher", "filesize_mb", "language" , "filetype", "filename"])
 
