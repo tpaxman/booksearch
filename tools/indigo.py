@@ -11,17 +11,34 @@ def search_indigo(author: str=None, title: str=None, keywords: str=None) -> pd.D
     search_string = ' '.join(filter(bool, (author, title, keywords)))
     quoted_search_string = quote_plus(search_string)
     search_url = f"https://www.chapters.indigo.ca/en-ca/home/search/?keywords={quoted_search_string}#internal=1"
+    print(search_url)
     search_results_html = requests.get(search_url).content
     soup = BeautifulSoup(search_results_html, features='html.parser')
     result_items = soup.find('div', class_="product-list__results-container").find_all('div', class_="product-list__product product-list__product-container")
 
     result_items_data = []
     for x in result_items:
+        base_price = x.find('p', attrs={"data-a8n": "search-page__product-list-or-adjusted-price"})
+
+        if base_price:
+            price = base_price.getText()
+            list_price = price
+        else:
+            price = x.find('p', attrs={"data-a8n": "search-page__product-adjusted-price"}).getText()
+            list_price = x.find('p', attrs={"data-a8n":  "search-page__product-list-price"}).getText()
+
+        get_price = lambda x: float(re.search(r'\d+\.\d+', x).group(0))
+
+        price_cad = get_price(price)
+        list_price_cad = get_price(list_price)
+        discount = str(int((1 - price_cad/list_price_cad)*100)) + '%'
+
         result_items_data.append({
             "title": x.find('h3', class_="product-list__product-title").getText(),
             "author": x.find('p', class_="product-list__author").getText(),
             "bookformat": x.find('div', class_="product-list__product-format").getText(),
-            "price_cad": float(x.find('p', class_="product-list__price--black product-list__listview-price").getText().strip('$')),
+            "price_cad": price_cad,
+            "discount": discount,
             "online_availability": x.find('div', attrs={"data-a8n":"search-page__online-availability-message"}).getText(),
             "store_availability": x.find('div', attrs={"data-a8n":"search-page__store-availability-message"}).getText(),
         })
