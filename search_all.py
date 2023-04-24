@@ -1,4 +1,4 @@
-from tools import abebooks, bibliocommons, goodreads, annas_archive
+from tools import abebooks, bibliocommons, goodreads, annas_archive, indigo
 import argparse
 
 
@@ -27,6 +27,7 @@ def lookup_everything(author: str=None, title: str=None, keywords: str=None, row
         "cpl": bibliocommons.search_cpl(author=author, title=title, anywhere=keywords, formatcode='EBOOK')[['title', 'author', 'format_description', 'availability_status', 'hold_counts']],
         "goodreads": goodreads.run_goodreads_search(search_string)[['title', 'author', 'avg_rating', 'num_ratings']],
         "annas": annas_archive.run_annas_archive_search(search_string=search_string)[['title', 'author', 'filetype', 'filesize_mb']],
+        "indigo": indigo.search_indigo(title=title, author=author, keywords=keywords),
     }
 
     for k, v in datasets.items():
