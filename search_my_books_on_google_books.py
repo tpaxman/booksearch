@@ -6,14 +6,6 @@ inputs_file = 'inputs/manual_input_all.txt'
 inputs_delim = ';'
 inputs_order = ['title', 'author']
 
-def refilter(full_string, search_string):
-    """ ensure all words in search_string appear in full_string """
-    if search_string:
-        search_words = re.findall(r'\w+', search_string)
-        return all(w.lower() in full_string.lower() for w in search_words)
-    else:
-        return True
-
 with open(inputs_file, encoding='utf-8') as f:
     raw_search_strings = f.read().strip().split('\n')
 
@@ -25,14 +17,15 @@ df_searches = (
     .fillna('')
 )
 
-def search(title, author):
-    query = ' '.join((title, author))
-    df_results = goo.search_google_books(query, langRestrict=None)
-    df_refiltered = df_results.loc[lambda t: t.title.apply(lambda x: refilter(x, title)) & t.authors.apply(lambda x: refilter(x, author))]
-    df_output = df_refiltered.assign(query = query)
-    return df_output.iloc[0] if not df_output.empty else pd.Series()
-
-df_results = df_searches.head().apply(lambda r: search(title=r.title, author=r.author), axis=1)
-
-
-
+df_results = (df_searches
+    .head()
+    .apply(lambda r: goo
+        .search_google_books(title=r.title, author=r.author)
+        .assign(query = r.title + ' ' + r.author)
+        .iloc[0]
+        , axis=1
+    )
+    .loc[:, ['query', 'title', 'subtitle', 'authors', 'author_primary', 'publisher', 'isbn_10', 'isbn_13', 'language', 'published_year']]
+    .fillna({'published_date': 0})
+    .fillna('')
+)

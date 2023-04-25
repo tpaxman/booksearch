@@ -14,10 +14,12 @@ def search_google_books(author: str=None, title: str=None, keywords: str=None, l
     search_url = form_search_url(q=query_argument, langRestrict=lang)
     results = run_search(search_url)
     clean_results = clean_search_results(results)
-    refiltered_results = clean_results.loc[lambda t: 
-        (t.title + ' ' + t.subtitle).apply(lambda x: refilter(x, title)) & 
-        t.authors.apply(lambda x: refilter(x, author))
-    ]
+    refiltered_results = (clean_results
+        .assign(subtitle = lambda t: t.apply(lambda r: s if (s := r.get('subtitle')) else '', axis=1))
+        .loc[lambda t: (t.title + ' ' + t.subtitle).apply(lambda x: refilter(x, title)) & 
+                       t.authors.apply(lambda x: refilter(x, author))
+        ]
+    )
     return refiltered_results
 
 
@@ -89,15 +91,15 @@ def clean_search_results(results: pd.DataFrame) -> pd.DataFrame:
         .rename(columns=str.lower)
     )
 
-    image_links = (results
-        .imageLinks
-        .apply(pd.Series)
-        .rename(columns={"smallThumbnail": "small_image_link", "thumbnail": "image_link"})
-    )
+    #image_links = (results
+    #    .imageLinks
+    #    .apply(pd.Series)
+    #    .rename(columns={"smallThumbnail": "small_image_link", "thumbnail": "image_link"})
+    #)
     
     clean_results = (results
         .join(isbns)
-        .join(image_links)
+        #.join(image_links)
         .assign(
             publishedDate = lambda t: t.publishedDate.astype('string').fillna('0'), # ensure dates are strings
             author_primary = lambda t: t.authors.str[0],
