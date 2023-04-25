@@ -9,6 +9,10 @@ inputs_order = ['title', 'author']
 with open(inputs_file, encoding='utf-8') as f:
     raw_search_strings = f.read().strip().split('\n')
 
+def search(title, author):
+    print(title, author)
+    return goo.search_google_books(title=title, author=author)
+
 df_searches = (
     pd.DataFrame(
         [[y.strip() for y in x.split(inputs_delim)] for x in raw_search_strings],
@@ -18,14 +22,13 @@ df_searches = (
 )
 
 df_results = (df_searches
-    .head()
-    .apply(lambda r: goo
-        .search_google_books(title=r.title, author=r.author)
-        .assign(query = r.title + ' ' + r.author)
-        .iloc[0]
-        , axis=1
-    )
-    .loc[:, ['query', 'title', 'subtitle', 'authors', 'author_primary', 'publisher', 'isbn_10', 'isbn_13', 'language', 'published_year']]
+    .head(22)
+    .assign(results = lambda t: t.apply(lambda r: search(title=r.title, author=r.author).assign(q_title=r.title, q_author=r.author), axis=1))
+    .loc[lambda t: t.results.apply(lambda x: not x.empty)]
+    .results
+    .apply(lambda x: x.iloc[0])
+    .loc[:, ['q_title', 'q_author', 'title', 'subtitle', 'authors', 'author_primary', 'publisher', 'isbn_10', 'isbn_13', 'language', 'published_year']]
     .fillna({'published_date': 0})
     .fillna('')
 )
+

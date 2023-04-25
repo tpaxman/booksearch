@@ -13,6 +13,8 @@ def search_google_books(author: str=None, title: str=None, keywords: str=None, l
     query_argument = form_query_argument(keywords=keywords, intitle=title, inauthor=author)
     search_url = form_search_url(q=query_argument, langRestrict=lang)
     results = run_search(search_url)
+    if results.empty:
+        return pd.DataFrame()
     clean_results = clean_search_results(results)
     refiltered_results = (clean_results
         .assign(subtitle = lambda t: t.apply(lambda r: s if (s := r.get('subtitle')) else '', axis=1))
@@ -72,7 +74,10 @@ def run_search(search_url: str) -> pd.DataFrame:
         .json()
         .get('items')
     )
-    volumes = pd.DataFrame(x.get('volumeInfo') for x in items)
+    if items:
+        volumes = pd.DataFrame(x.get('volumeInfo') for x in items)
+    else:
+        volumes = pd.DataFrame()
     return volumes
 
 
