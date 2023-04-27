@@ -3,38 +3,103 @@ import re
 import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
+from typing import Literal
 
 # TODO: filter out book review and such by specifying "BOOK" type
 # TODO: filter to english only by default
 
-def run_annas_archive_search(
-    search_string: str,
-    language: str=None,
-    filetype: str=None,
-    content: str=None,
-) -> pd.DataFrame:
+valid_content_types = Literal[
+    "book_any", 
+    "book_fiction", 
+    "book_unknown", 
+    "journal_article", 
+    "book_nonfiction", 
+    "book_comic", 
+    "magazine", 
+    "standards_document"
+]
 
-    quoted_search_string = quote_plus(search_string)
+valid_filetypes = Literal[
+    'epub',
+    'pdf',
+    'mobi',
+    'azw3',
+    'rtf',
+    'fb2',
+    'fb2.zip',
+    'txt',
+    'doc',
+    'dbr',
+    'lit',
+    'html',
+    'cbz',
+    'rar',
+    'zip',
+    'htm',
+    'djvu',
+    'lrf',
+    'mht',
+    'docx'
+]
 
-    search_url = (
-        "https://annas-archive.org/search?" + 
-        '&'.join([x for x in [
-            f"q={quoted_search_string}",
-            f"lang={language}" if language else '',
-            f"ext={filetype}" if filetype else '',
-        ] if x])
-    )
-    print(f"ANNA'S ARCHIVE: {search_url}")
+valid_sort_options = Literal[
+    'relevant',
+    'newest',
+    'oldest',
+    'largest',
+    'smallest',
+]
 
-    search_results_html = (requests
-        .get(search_url)
-        .content
+# TODO: finish filling these in later
+valid_languages = Literal['_empty', 'en', 'fr', 'de', 'es']
+
+def compose_annas_archive_search_url(
+    query: str,
+    filetype: valid_filetypes="epub",
+    language: valid_languages="en",
+    content_type: valid_content_types="book_any",
+    sortby: valid_sort_options="relevant",
+) -> str:
+
+    sort_mappings = {
+        'relevant': '',
+        'newest': 'newest',
+        'oldest': 'oldest',
+        'largest': 'largest',
+        'smallest': 'smallest',
+    }
+
+    root_url = "https://annas-archive.org/search?"
+
+    arguments = {
+        "q": quote_plus(query),
+        "filetype": filetype,
+        "lang": language,
+        "ext": filetype,
+        "sort": sort_mappings.get(sortby),
+    }
+
+    arguments_string = '&'.join(f'{k}={v}' for k, v in arguments.items() if v)
+    search_url = root_url + arguments_string
+    return search_url
+
+# TODO: extract this function
+def get_annas_archive_results_html(search_url: str) -> bytes:
+    response = requests.get(search_url)
+    results_html = response.content
+    return results_html
+
+
+def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
+
+    results_uncommented_html = (
+        results_html
         .decode('utf-8')
         .replace('<!--', '')
         .replace('-->', '')
     )
 
-    soup = BeautifulSoup(search_results_html, features='html.parser')
+    soup = BeautifulSoup(results_uncommented_html, features='html.parser')
 
     # remove all the "partial matches" from the soup
     if 'partial match' in soup.getText():
@@ -45,14 +110,14 @@ def run_annas_archive_search(
         except:
             # TODO: this is bad, we should probably do another check instead with the result items first
             # TODO: make this dependent on the output columns somehow (also for all the other toolsw
-            return pd.DataFrame(columns=["title", "author", "publisher", "filesize_mb", "language" , "filetype", "filename"])
+            return pd.DataFrame()
 
     result_items = [x.find('a').find('div').findNextSibling() 
                     for x in soup.find_all('div', class_='h-[125]')]
 
     if not result_items:
         # TODO: remove this repeated thing
-        return pd.DataFrame(columns=["title", "author", "publisher", "filesize_mb", "language" , "filetype", "filename"])
+        return pd.DataFrame()
 
     # TODO: extract this dumb function
     get_text = lambda elem: elem.getText() if elem else ''
