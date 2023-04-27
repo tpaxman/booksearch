@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
+from typing import Literal
 import requests
-from urllib.parse import quote
+from urllib.parse import quote, quote_plus
 from forex_python.converter import CurrencyRates
 import re
 import pandas as pd
@@ -9,71 +10,134 @@ from functools import partial
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 
+# TODO: decide if this conversion is really necessary
 USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
-pd.options.display.max_colwidth = 50
-
+# TODO: use this to make a partial function for local sellers only
 SELLERS = {
     'alhambra-books': 3054340,
     'edmonton-book-store': 19326,
     'the-bookseller': 51101471,
 }
 
+on_off_type = Literal['on', 'off']
 
-def run_abebooks_search(
-    author: str=None,
+def compose_abebooks_search_url(
     title: str=None,
+    author: str=None,
     keywords: str=None,
-    sellers: list=None,
+    binding: Literal['any', 'hardcover', 'softcover']='any',
+    condition: Literal['any', 'new', 'used']='used',
     publisher: str=None,
-    binding: str=None,
-) -> pd.DataFrame:
+    signed: on_off_type=None,
+    product_type: Literal['book', 'art', 'comic', 'mag', 'ms', 'map', 'photo', 'music']='book',
+    isbn: str=None,
+    recentlyadded: Literal['all', '2day', '3day', '21day']='all',
+    region: Literal['na', 'er']=None, # TODO: add more
+    country: Literal['ca', 'us']=None, # TODO: add more
+    price_low: float=None,
+    price_high: float=None,
+    year_low: int=None,
+    year_high: int=None,
+    sortby: str='total-price',
+    num_results: int=100,
+    first_edition: on_off_type=None,
+    dust_jacket: on_off_type=None,
+    rollup: on_off_type=None,
+    boolean_search: on_off_type='off',
+    not_print_on_demand: on_off_type='off',
+    expand_descriptions: on_off_type='off',
+    sellers: list=None,
+) -> str:
 
-    static_parameters = [
-        f"bx=off",
-        f"cm_sp=SearchF-_-Advs-_-Result",
-        f"ds=100",  # 100 seems to be the max. If you go over it, it will instead return 30
-        f"n=100121503",
-        f"recentlyadded=all",
-        f"rollup=on",
-        f"sortby=17",
-        f"sts=t",
-        f"xdesc=off",
-        f"xpod=off",
-    ]
+    # TODO: link these mappings to their associated 'Literal' argument types (if possible)
+    sortby_mappings = {
+        'recent': 0,
+        'price-desc': 1,
+        'price': 2,
+        'author-desc': 4,
+        'author': 5,
+        'title-desc': 6,
+        'title': 7,
+        'seller-rating': 15,
+        'total-price': 17,
+        'publication-year-desc': 18,
+        'publication-year': 19,
+        'relevance': 20,
+    }
 
-    optional_parameters = [
-        f"kn={quote(keywords)}" if keywords else None,
-        f"tn={quote(title)}" if title else None,
-        f"an={quote(author)}" if author else None,
-        (f"saction=allow&" + (f"&slist=" + '%2B'.join(map(str, sellers)))) if sellers else None,
-        f"pn={quote(publisher)}" if publisher else None,
-        f"bi={binding}" if binding else "bi=0"
-    ]
+    binding_mappings = {
+        "any": "any",
+        "hardcover": "h",
+        "softcover": "s",
+    }
 
-    all_parameters = static_parameters + [x for x in optional_parameters if x]
+    condition_mappings = {
+        "new": '100121501',
+        "used": '100121503',
+        "any": None,
+    }
 
-    search_url = (
-        "https://www.abebooks.com/servlet/SearchResults?" +
-        '&'.join(all_parameters)
-    )
-    print(f"ABEBOOKS: {search_url}")
+    # TODO: figure out what cm_sp is
+    # TODO: figure out what sts is
+    arguments = {
+        "cm_sp": "SearchF-_-Advs-_-Result", 
+        "sts": "t", 
+        "bx": boolean_search,
+        "ds": num_results,
+        "n": condition_mappings.get(condition),
+        "recentlyadded": recentlyadded,
+        "rollup": rollup,
+        "sortby": sortby_mappings.get(sortby),
+        "xdesc": expand_descriptions,
+        "xpod": not_print_on_demand,
+        "kn": keywords,
+        "tn": title,
+        "an": author,
+        "pn": publisher,
+        "bi": binding_mappings.get(binding),
+        "dj": dust_jacket,
+        "isbn": isbn,
+        "pt": product_type,
+        "rgn": region,
+        "cty": country,
+        "yrh": year_high,
+        "yrl": year_low,
+        "prh": price_high,
+        "prl": price_low,
+        "sgnd": signed,
+        "saction=allow&slist": quote_plus(' '.join(str(x) for x in sellers)) if sellers else None #TODO: handle this one differently (must have the saction=allow as well
+    }
 
+    root_url = "https://www.abebooks.com/servlet/SearchResults?"
+
+    arguments_string = '&'.join(f'{k}={quote(str(v))}' for k, v in arguments.items() if v)
+
+    search_url = root_url + arguments_string
+
+    return search_url
+
+
+
+compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
+
+
+
+def get_abebooks_results_html(search_url: str) -> bytes:
     response = requests.get(search_url)
-    search_results_html = response.content
-    soup = BeautifulSoup(search_results_html, features='html.parser')
+    results_html = response.content
+    return results_html
+
+
+def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
+    soup = BeautifulSoup(results_html, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
 
     if not results_block:
-        return pd.DataFrame(columns=(['isbn', 'title', 'author', 'about', 'publisher', 'date_published',
-       'binding', 'price_usd', 'priceCurrency', 'condition', 'availability',
-       'seller', 'shipping_details', 'shipping_cost_usd', 'edition',
-       'in_edmonton', 'price_cad', 'shipping_cost_cad', 'total_price_cad']))
+        return pd.DataFrame()
 
-    result_items = results_block.find_all('li', attrs={'data-cy': 'listing-item'})
-
-    result_items_data = []
-    for x in result_items:
+    result_items = []
+    for x in results_block.find_all('li', attrs={'data-cy': 'listing-item'}):
 
         # get all metadata
         metadata = {y.get('itemprop'): y.get('content') for y in x.find_all('meta')}
@@ -104,10 +168,10 @@ def run_abebooks_search(
         }
 
         all_data = metadata | other_data
-        result_items_data.append(all_data)
+        result_items.append(all_data)
 
     df_results = (pd
-        .DataFrame(result_items_data)
+        .DataFrame(result_items)
         .fillna('')
         .rename(columns={
             "name": "title",
@@ -129,10 +193,11 @@ def run_abebooks_search(
     return df_results
 
 
-         
+
 def get_condition(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
+    return condition
 
     # TODO: implement this
     # condition_special = {
@@ -147,18 +212,6 @@ def get_condition(about: str) -> str:
     #     'fine': 7
     # }
 
-    return condition
-
-
-
-request_search_results_in_edmonton = partial(run_abebooks_search, sellers=SELLERS.values())
-
-def search_abebooks(**kwargs) -> pd.DataFrame:
-    df_results = run_abebooks_search(**kwargs)
-    display_results(df_results)
-
-search_edmonton_bookstore = partial(search_abebooks, sellers=[19326])
-search_edmonton_stores = partial(search_abebooks, sellers=SELLERS.values())
 
 def display_results(df_results: pd.DataFrame) -> None:
     if not df_results.empty:
@@ -179,18 +232,4 @@ def display_results(df_results: pd.DataFrame) -> None:
 
         print(df_results_display)
         print('')
-
-
-# TODO: implement these
-def search_abebooks_advanced(
-    title: str = None,
-    author: str = None,
-    keywords: str = None,
-    binding: str = None,
-    seller_ids: list = None,
-    is_signed: bool = None,
-) -> str:
-    slist_term = (f"&slist=" + '%2B'.join(map(str, seller_ids))) if seller_ids else ''
-    f"saction=allow",
-
 
