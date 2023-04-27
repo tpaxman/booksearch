@@ -55,20 +55,13 @@ valid_languages = Literal['_empty', 'en', 'fr', 'de', 'es']
 
 def compose_annas_archive_search_url(
     query: str,
-    filetype: valid_filetypes="epub",
-    language: valid_languages="en",
+    filetype: valid_filetypes=None,
+    language: valid_languages=None,
     content_type: valid_content_types="book_any",
-    sortby: valid_sort_options="relevant",
+    sortby: valid_sort_options=None,
 ) -> str:
 
-    sort_mappings = {
-        'relevant': '',
-        'newest': 'newest',
-        'oldest': 'oldest',
-        'largest': 'largest',
-        'smallest': 'smallest',
-    }
-
+    # note: sortby=None defaults to 'most relevant'
     root_url = "https://annas-archive.org/search?"
 
     arguments = {
@@ -76,7 +69,7 @@ def compose_annas_archive_search_url(
         "filetype": filetype,
         "lang": language,
         "ext": filetype,
-        "sort": sort_mappings.get(sortby),
+        "sort": sortby,
     }
 
     arguments_string = '&'.join(f'{k}={v}' for k, v in arguments.items() if v)
