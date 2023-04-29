@@ -4,6 +4,7 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
+from tools.parse_tools import get_text
 
 # TODO: filter out book review and such by specifying "BOOK" type
 # TODO: filter to english only by default
@@ -112,10 +113,6 @@ def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
         # TODO: remove this repeated thing
         return pd.DataFrame()
 
-    # TODO: extract this dumb function
-    get_text = lambda elem: elem.getText() if elem else ''
-    get_group = lambda result, group_id: result.group(group_id) if result else ''
-
     # TODO: add in link 
     # TODO: add in file extension
     result_items_data = []
@@ -126,10 +123,6 @@ def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
         title = x.find('h3')
 
         file_details_text = get_text(file_details)
-
-        # filesize_mb = float(get_group(re.search(r'(\S+)MB', file_details_text), 1).replace('<', ''))
-        # item_language = get_group(re.search(r'^.*?\[(.*?)\].*MB', file_details_text), 1)
-        # item_filetype = get_group(re.search(r', (\w+), \S+MB', file_details_text), 1)
 
         try:
             filesize_mb = float(re.search(r'(\S+)MB', file_details_text).group(1).replace('<', ''))
@@ -156,9 +149,9 @@ def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
         # to make it extra sure
 
         result_items_data.append({
-            "title": get_text(title),
-            "author": get_text(author),
-            "publisher": get_text(publisher),
+            "title": get_text(title).strip(),
+            "author": get_text(author).strip(),
+            "publisher": get_text(publisher).strip(),
             "filesize_mb": filesize_mb,
             "language": item_language,
             "filetype": item_filetype,

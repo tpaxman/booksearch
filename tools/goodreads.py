@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 import pandas as pd
 from typing import Callable
 import re
+from tools.parse_tools import get_text
 
 # TODO: figure out why goodreads only returns 5 things
 # TODO: sort by most ratings maybe? Getting some weird values otherwise
@@ -23,7 +24,6 @@ def run_goodreads_search(search_string: str) -> pd.DataFrame:
     except:
         return pd.DataFrame(columns=['title', 'author', 'avg_rating', 'num_ratings', 'link'])
 
-    get_text = lambda elem: elem.getText() if elem else ''
 
     result_items_data = []
     for x in result_items:

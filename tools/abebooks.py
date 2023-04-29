@@ -122,7 +122,7 @@ def compose_abebooks_search_url(
 compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
 
 
-
+# TODO: extract this function
 def get_abebooks_results_html(search_url: str) -> bytes:
     response = requests.get(search_url)
     results_html = response.content

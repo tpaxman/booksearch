@@ -2,7 +2,8 @@ import re
 import requests
 import pandas as pd
 from urllib.parse import quote_plus
-from typing import Literal, get_args
+from typing import Literal, get_args, Callable
+from tools.parse_tools import refilter
 
 # DOCUMENTATION: https://developers.google.com/books/docs/v1/using#st_params
 
@@ -12,7 +13,8 @@ def search_google_books(author: str=None, title: str=None, keywords: str=None, l
     """
     query_argument = form_query_argument(keywords=keywords, intitle=title, inauthor=author)
     search_url = form_search_url(q=query_argument, langRestrict=lang)
-    results = run_search(search_url)
+    json_results = get_search_results(search_url)
+    results = parse_search_results(json_results)
     if results.empty:
         return pd.DataFrame()
     clean_results = clean_search_results(results)
@@ -67,6 +69,20 @@ def form_search_url(
     return search_url
 
 
+def get_search_results(search_url: str) -> dict:
+    json_results = requests.get(search_url).json()
+    return json_results
+
+
+def parse_search_results(json_results: dict) -> pd.DataFrame:
+    items = json_results.get('items')
+    if items:
+        volumes = pd.DataFrame(x.get('volumeInfo') for x in items)
+    else:
+        volumes = pd.DataFrame()
+    return volumes
+
+
 def run_search(search_url: str) -> pd.DataFrame:
     """ run a search on the Google Books API and return raw results """
     items = (requests
@@ -79,6 +95,14 @@ def run_search(search_url: str) -> pd.DataFrame:
     else:
         volumes = pd.DataFrame()
     return volumes
+
+
+def generate_isbn_getter(isbn_type: str):
+    def extract_isbn(industry_identifiers: list) -> str:
+        return result[0] if (result := [x.get('identifier') for x in ii if x.get('type') == isbn_type]) else ''
+    return extract_isbn
+
+
 
 
 def clean_search_results(results: pd.DataFrame) -> pd.DataFrame:
@@ -133,12 +157,3 @@ def get_publication_year(published_date: str) -> int:
     year_match = re.search(r'^\d{4}', published_date) if published_date else None
     year = int(year_match.group()) if year_match else 0
     return year
-
-
-def refilter(full_string, search_string):
-    """ ensure all words in search_string appear in full_string """
-    if search_string:
-        search_words = re.findall(r'\w+', search_string)
-        return all(w.lower() in full_string.lower() for w in search_words)
-    else:
-        return True
