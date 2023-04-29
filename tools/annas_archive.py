@@ -6,10 +6,8 @@ from bs4 import BeautifulSoup
 from typing import Literal
 from tools.webscraping import get_text
 
-# TODO: filter out book review and such by specifying "BOOK" type
-# TODO: filter to english only by default
 
-valid_content_types = Literal[
+CONTENT_TYPES = Literal[
     "book_any", 
     "book_fiction", 
     "book_unknown", 
@@ -20,7 +18,7 @@ valid_content_types = Literal[
     "standards_document"
 ]
 
-valid_filetypes = Literal[
+FILETYPES = Literal[
     'epub',
     'pdf',
     'mobi',
@@ -43,7 +41,7 @@ valid_filetypes = Literal[
     'docx'
 ]
 
-valid_sort_options = Literal[
+SORT_OPTIONS = Literal[
     'relevant',
     'newest',
     'oldest',
@@ -56,10 +54,10 @@ valid_languages = Literal['_empty', 'en', 'fr', 'de', 'es']
 
 def compose_annas_archive_search_url(
     query: str,
-    filetype: valid_filetypes=None,
+    filetype: FILETYPES=None,
     language: valid_languages=None,
-    content_type: valid_content_types="book_any",
-    sortby: valid_sort_options=None,
+    content_type: CONTENT_TYPES="book_any",
+    sortby: SORT_OPTIONS=None,
 ) -> str:
 
     # note: sortby=None defaults to 'most relevant'
