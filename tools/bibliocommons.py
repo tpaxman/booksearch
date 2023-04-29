@@ -5,7 +5,7 @@ import requests
 from urllib.parse import quote_plus
 import pandas as pd
 from typing import Callable, Literal
-from tools.parse_tools import refilter, get_text
+from tools.webscraping import refilter, get_text
 
 valid_formatcodes = Literal[
     'BK',

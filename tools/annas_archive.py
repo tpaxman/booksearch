@@ -4,7 +4,7 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
-from tools.parse_tools import get_text
+from tools.webscraping import get_text
 
 # TODO: filter out book review and such by specifying "BOOK" type
 # TODO: filter to english only by default

@@ -4,7 +4,7 @@ from urllib.parse import quote_plus
 import pandas as pd
 from typing import Callable
 import re
-from tools.parse_tools import get_text
+from tools.webscraping import get_text
 
 # TODO: figure out why goodreads only returns 5 things
 # TODO: sort by most ratings maybe? Getting some weird values otherwise

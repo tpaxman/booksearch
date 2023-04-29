@@ -9,4 +9,5 @@ def refilter(full_string, search_string):
         return True
 
 def get_text(elem) -> str:
+    """ get text from a BeautifulSoup element if the element exists """
     return elem.getText() if elem else ''
