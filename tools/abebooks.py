@@ -13,11 +13,14 @@ from functools import partial
 # TODO: decide if this conversion is really necessary
 USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
-# TODO: use this to make a partial function for local sellers only
+ALHAMBRA_BOOKS_SELLER_ID = 3054340
+EDMONTON_BOOK_STORE_SELLER_ID = 19326
+THE_BOOKSELLER_SELLER_ID = 51101471
+
 SELLERS = {
-    'alhambra-books': 3054340,
-    'edmonton-book-store': 19326,
-    'the-bookseller': 51101471,
+    'alhambra-books': ALHAMBRA_BOOKS_SELLER_ID,
+    'edmonton-book-store': EDMONTON_BOOK_STORE_SELLER_ID,
+    'the-bookseller': THE_BOOKSELLER_SELLER_ID,
 }
 
 on_off_type = Literal['on', 'off']
@@ -49,7 +52,9 @@ def compose_abebooks_search_url(
     expand_descriptions: on_off_type='off',
     sellers: list=None,
 ) -> str:
-
+    """
+    Compose a URL to search Abebooks
+    """
     # TODO: link these mappings to their associated 'Literal' argument types (if possible)
     sortby_mappings = {
         'recent': 0,
@@ -118,11 +123,11 @@ def compose_abebooks_search_url(
     return search_url
 
 
-compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
-
-
-
 def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
+    """
+    Parse the response content returned by an Abebooks search request
+    """
+
     soup = BeautifulSoup(results_html, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
 
@@ -178,7 +183,7 @@ def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
             in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
             price_cad = lambda t: t.price_usd.astype(float).multiply(USD_TO_CAD_FACTOR).round(0).astype(int),
             shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_usd.astype(float).multiply(USD_TO_CAD_FACTOR).round(0).astype(int)),
-            condition = lambda t: t.about.apply(get_condition),
+            condition = lambda t: t.about.apply(get_condition_description),
             total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
         )
     )
@@ -186,26 +191,31 @@ def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
     return df_results
 
 
-
-def get_condition(about: str) -> str:
+def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
     return condition
 
-    # TODO: implement this
-    # condition_special = {
-    #     'poor': 1
-    #     'acceptable': 2
-    #     'fair': 2
-    #     'good': 3
-    #     'very good' 4
-    #     'very good+': 5
-    #     'near fine': 6
-    #     'like new': 7
-    #     'fine': 7
-    # }
+
+compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
 
 
+# TODO: IMPLEMENT
+def get_condition_rank(condition_description: str) -> int:
+    {
+        'poor': 1
+        'acceptable': 2
+        'fair': 2
+        'good': 3
+        'very good' 4
+        'very good+': 5
+        'near fine': 6
+        'like new': 7
+        'fine': 7
+    }.get(condition_description)
+
+
+# TODO: IMPLEMENT
 def display_results(df_results: pd.DataFrame) -> None:
     if not df_results.empty:
 
@@ -225,4 +235,3 @@ def display_results(df_results: pd.DataFrame) -> None:
 
         print(df_results_display)
         print('')
-
