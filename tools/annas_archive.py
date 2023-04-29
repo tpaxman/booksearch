@@ -77,12 +77,6 @@ def compose_annas_archive_search_url(
     search_url = root_url + arguments_string
     return search_url
 
-# TODO: extract this function
-def get_annas_archive_results_html(search_url: str) -> bytes:
-    response = requests.get(search_url)
-    results_html = response.content
-    return results_html
-
 
 def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
 

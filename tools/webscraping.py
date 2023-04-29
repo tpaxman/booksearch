@@ -11,3 +11,11 @@ def refilter(full_string, search_string):
 def get_text(elem) -> str:
     """ get text from a BeautifulSoup element if the element exists """
     return elem.getText() if elem else ''
+
+
+def get_response_content(search_url: str) -> bytes:
+    response = requests.get(search_url)
+    results_html = response.content
+    return results_html
+
+

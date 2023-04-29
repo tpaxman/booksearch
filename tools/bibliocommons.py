@@ -46,14 +46,6 @@ def generate_bibliocommons_search_url_composer(library_subdomain: valid_library_
 
 
 
-# TODO: extract this function
-def get_search_results_html(search_url: str) -> bytes:
-    response = requests.get(search_url)
-    results_html = response.content
-    return results_html
-
-
-
 def parse_bibliocommons_search_results(results_html: bytes, title_refilter: str = None, author_refilter: str = None) -> pd.DataFrame:
 
     soup = BeautifulSoup(results_html, features='html.parser')
