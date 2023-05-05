@@ -37,11 +37,11 @@ def main():
     args = parser.parse_args()
 
     url_compose = compose_abebooks_search_url if not args.edmonton_only else compose_abebooks_edmonton_search_url
-    print(args.first_edition)
     search_url = url_compose(author=args.author, title=args.title, first_edition=args.first_edition)
     content = requests.get(search_url).content
     df_results = parse_abebooks_results_html(content)
     print_results(df_results)
+
 
 def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
     df_formatted = (
@@ -292,7 +292,9 @@ def display_results(df_results: pd.DataFrame) -> None:
         print(df_results_display)
         print('')
 
+
 compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
+
 
 if __name__ == '__main__':
     main()
