@@ -171,16 +171,18 @@ def parse_results(content: bytes) -> pd.DataFrame:
             "name": "title",
             "datePublished": "date_published",
             "price": "price_usd",
+            "priceCurrency": "currency",
             "itemCondition": "condition",
             "bookEdition": "edition",
             "bookFormat": "binding",
         })
         .assign(condition = lambda t: t.about.apply(get_condition_description))
+        .convert_dtypes()
+        .astype({'price_usd': 'float', 'shipping_cost_usd': 'float'})
         # TODO: add another way to get "edition" here (in case it's non-existant) by parsing 'about'
     )
 
     return df_results
-
 
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)

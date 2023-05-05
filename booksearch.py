@@ -96,10 +96,6 @@ def print_results_bibliocommons(search_url: str) -> None:
 
     print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
 
-def checker(df):
-    print(df.dtypes)
-    return df
-
 def print_results_abebooks(search_url: str) -> None:
     content = requests.get(search_url).content
     df_results = abe.parse_results(content)
@@ -111,30 +107,26 @@ def print_results_abebooks(search_url: str) -> None:
     df_formatted = (
         df_results
         .convert_dtypes()
-        .astype({
-            'price_usd': 'float',
-            'shipping_cost_usd': 'float',
-        })
         .fillna({
             'price_usd': 0,
             'shipping_cost_usd': 0
         })
         .assign(
-            price_cad = lambda t: t.price_usd.astype('float').multiply(USD_TO_CAD_FACTOR),
-            shipping_cost_cad = lambda t: t.shipping_cost_usd.astype('float').multiply(USD_TO_CAD_FACTOR),
+            price_cad = lambda t: t.price_usd.multiply(USD_TO_CAD_FACTOR),
+            shipping_cost_cad = lambda t: t.shipping_cost_usd.multiply(USD_TO_CAD_FACTOR),
         )
         .assign(
             in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
             # they always list them in USD but the in-store price is the same value in CAD
             price_cad = lambda t: np.where(t.seller.str.lower().str.contains('edmonton book store'), t.price_usd, t.price_cad),
-            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_cad).astype('float'),
+            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0.0, t.shipping_cost_cad),
         )
         .assign(
             total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
             price_description = lambda t: (
-                t.price_cad.fillna(0).round(0).astype('int').astype('string')
-                + ' + ' + t.shipping_cost_cad.fillna(0).round(0).astype('int').astype('string')
-                + ' = ' + t.total_price_cad.fillna(0).round(0).astype('int').astype('string')
+                t.price_cad.astype('int').astype('string')
+                + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
+                + ' = ' + t.total_price_cad.astype('int').astype('string')
                 ),
         )
         .assign(
