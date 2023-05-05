@@ -7,6 +7,8 @@ import re
 import pandas as pd
 import numpy as np
 from functools import partial
+import argparse
+import tabulate
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 
@@ -23,7 +25,59 @@ SELLERS = {
     'the-bookseller': THE_BOOKSELLER_SELLER_ID,
 }
 
-on_off_type = Literal['on', 'off']
+ON_OFF_TYPE = Literal['on', 'off']
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--title', '-t')
+    parser.add_argument('--author', '-a')
+    args = parser.parse_args()
+
+    search_url = compose_abebooks_search_url(author=args.author, title=args.title)
+    content = requests.get(search_url).content
+    df_results = parse_abebooks_results_html(content)
+    df_formatted = format_results(df_results)
+    print(tabulate.tabulate(df_formatted, showindex=False))
+    #print_series(df_results.iloc[0].loc[['title', 'author', 'binding', 'condition', 'seller', 'price_cad', 'total_price_cad']])
+    #for x in df_results.T.to_dict(orient='series').values():
+    #    print_result(x)
+
+
+def print_result(result: pd.Series) -> None:
+    print(f'${result.price_cad} (+${result.shipping_cost_cad}) | {result.binding.lower()} | {result.condition.lower()} | {result.seller} | ({result.title[:20]}..." by {result.author})')
+
+
+def format_results(df_results: pd.DataFrame) -> pd.DataFrame:
+    return (
+        df_results
+        .assign(
+            title_snippet = lambda t: t['title'].str[:20] + '...',
+            price_description = lambda t: '$' + t.price_cad.astype('int').astype('string') + ' (+$' + t.shipping_cost_cad.astype('int').astype('string') + ')',
+        )
+        [['title_snippet', 'author', 'price_description', 'binding', 'condition', 'seller']]
+    )
+
+
+
+
+def print_series(s: pd.Series) -> None:
+
+    index = s.index.astype('string')
+    values = s.astype('string')
+
+    index_width = index.str.len().max()
+    values_width = values.str.len().max()
+
+    index_padded = [x.rjust(index_width) for x in index]
+    values_padded = [x.ljust(values_width) for x in values]
+
+    rows = [k + ': ' + v for k, v in zip(index_padded, values_padded)]
+
+    full_text = '\n'.join(rows)
+    print(full_text)
+
+
 
 def compose_abebooks_search_url(
     title: str=None,
@@ -32,7 +86,7 @@ def compose_abebooks_search_url(
     binding: Literal['any', 'hardcover', 'softcover']='any',
     condition: Literal['any', 'new', 'used']='used',
     publisher: str=None,
-    signed: on_off_type=None,
+    signed: ON_OFF_TYPE=None,
     product_type: Literal['book', 'art', 'comic', 'mag', 'ms', 'map', 'photo', 'music']='book',
     isbn: str=None,
     recentlyadded: Literal['all', '2day', '3day', '21day']='all',
@@ -44,14 +98,14 @@ def compose_abebooks_search_url(
     year_high: int=None,
     sortby: str='total-price',
     num_results: int=100,
-    first_edition: on_off_type=None,
-    dust_jacket: on_off_type=None,
-    rollup: on_off_type=None,
-    boolean_search: on_off_type='off',
-    not_print_on_demand: on_off_type='off',
-    expand_descriptions: on_off_type='off',
+    first_edition: ON_OFF_TYPE=None,
+    dust_jacket: ON_OFF_TYPE=None,
+    rollup: ON_OFF_TYPE=None,
+    boolean_search: ON_OFF_TYPE='off',
+    not_print_on_demand: ON_OFF_TYPE='off',
+    expand_descriptions: ON_OFF_TYPE='off',
     sellers: list=None,
-) -> str:
+    ) -> str:
     """
     Compose a URL to search Abebooks
     """
@@ -191,27 +245,33 @@ def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
     return df_results
 
 
+def get_first_abebooks_result(df_results: pd.DataFrame, binding: Literal['hardcover', 'softcover']=None) -> dict:
+    if not df_results.empty:
+        df_results_filtered = df_results.loc[lambda t: t.binding.str.lower().str.contains(binding.lower())] if binding else df_results
+        return df_results_filtered.iloc[0].to_dict()
+    else:
+        dict()
+
+def print_abebooks_summary(df_results: pd.DataFrame) -> None:
+    pass
+
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
     return condition
 
-
-compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
-
-
 # TODO: IMPLEMENT
 def get_condition_rank(condition_description: str) -> int:
     {
-        'poor': 1
-        'acceptable': 2
-        'fair': 2
-        'good': 3
-        'very good' 4
-        'very good+': 5
-        'near fine': 6
-        'like new': 7
-        'fine': 7
+        'poor': 1,
+        'acceptable': 2,
+        'fair': 2,
+        'good': 3,
+        'very good': 4,
+        'very good+': 5,
+        'near fine': 6,
+        'like new': 7,
+        'fine': 7,
     }.get(condition_description)
 
 
@@ -235,3 +295,8 @@ def display_results(df_results: pd.DataFrame) -> None:
 
         print(df_results_display)
         print('')
+
+compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
+
+if __name__ == '__main__':
+    main()
