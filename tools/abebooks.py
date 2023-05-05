@@ -33,66 +33,44 @@ def main():
     parser.add_argument('--title', '-t')
     parser.add_argument('--author', '-a')
     parser.add_argument('--edmonton_only', '-e', action='store_true')
+    parser.add_argument('--first_edition', '-f', action='store_const', const='on')
     args = parser.parse_args()
 
     url_compose = compose_abebooks_search_url if not args.edmonton_only else compose_abebooks_edmonton_search_url
-    search_url = url_compose(author=args.author, title=args.title)
+    print(args.first_edition)
+    search_url = url_compose(author=args.author, title=args.title, first_edition=args.first_edition)
     content = requests.get(search_url).content
     df_results = parse_abebooks_results_html(content)
-    df_formatted = format_results(df_results)
-    print(tabulate.tabulate(df_formatted, showindex=False))
+    print_results(df_results)
 
-    #print_series(df_results.iloc[0].loc[['title', 'author', 'binding', 'condition', 'seller', 'price_cad', 'total_price_cad']])
-    #for x in df_results.T.to_dict(orient='series').values():
-    #    print_result(x)
-
-
-def print_result(result: pd.Series) -> None:
-    print(f'${result.price_cad} (+${result.shipping_cost_cad}) | {result.binding.lower()} | {result.condition.lower()} | {result.seller} | ({result.title[:20]}..." by {result.author})')
-
-
-def format_results(df_results: pd.DataFrame) -> pd.DataFrame:
-    return (
+def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
+    df_formatted = (
         df_results
         .assign(
-            title = lambda t: t['title'].str[:20] + '...',
-            author = lambda t: t['author'].str[:20] + '...',
+            title = lambda t: t['title'].str[:20],
+            author = lambda t: t['author'].str[:15], 
+            binding = lambda t: t['binding'].str.lower(),
             price_cad = lambda t: (
                 t.price_cad.astype('int').astype('string')
                 + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
                 + ' = ' + t.total_price_cad.astype('int').astype('string')
-            )
+            ),
+            about = lambda t: t['about'].str[:40],
+            edition = lambda t: t.edition if 'edition' in t.columns else '',
         )
-        [['title', 'author', 'price_cad', 'binding', 'condition', 'seller']]
+        [['title', 'author', 'price_cad', 'binding', 'condition', 'seller', 'edition']]
         .rename(columns={
             'title': 'Title',
             'author': 'Author',
             'price_cad': 'Price (CAD)',
             'binding': 'Binding',
             'condition': 'Condition',
-            'seller': 'Seller'
+            'seller': 'Seller',
+            'edition': 'Edition',
         })
     )
 
-
-
-
-
-def print_series(s: pd.Series) -> None:
-
-    index = s.index.astype('string')
-    values = s.astype('string')
-
-    index_width = index.str.len().max()
-    values_width = values.str.len().max()
-
-    index_padded = [x.rjust(index_width) for x in index]
-    values_padded = [x.ljust(values_width) for x in values]
-
-    rows = [k + ': ' + v for k, v in zip(index_padded, values_padded)]
-
-    full_text = '\n'.join(rows)
-    print(full_text)
+    print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
 
 
 
@@ -162,6 +140,7 @@ def compose_abebooks_search_url(
         "bx": boolean_search,
         "ds": num_results,
         "n": condition_mappings.get(condition),
+        "fe": first_edition,
         "recentlyadded": recentlyadded,
         "rollup": rollup,
         "sortby": sortby_mappings.get(sortby),
