@@ -4,28 +4,10 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
-#from tools.webscraping import get_text
-from webscraping import get_text
+from tools.webscraping import get_text
+#from webscraping import get_text
 import tabulate
 import argparse
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('query')
-    parser.add_argument('--filetype', '-f')
-    parser.add_argument('--language', '-l')
-    args = parser.parse_args()
-
-    search_url = compose_annas_archive_search_url(
-        query=args.query, 
-        filetype=args.filetype,
-        language=args.language,
-    )
-
-    content = requests.get(search_url).content
-    df_results = parse_annas_archive_results(content)
-    print_results(df_results)
 
 
 CONTENT_TYPES = Literal[
@@ -71,7 +53,26 @@ SORT_OPTIONS = Literal[
 ]
 
 # TODO: finish filling these in later
-valid_languages = Literal['_empty', 'en', 'fr', 'de', 'es']
+VALID_LANGUAGES = Literal['_empty', 'en', 'fr', 'de', 'es']
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('query')
+    parser.add_argument('--filetype', '-f')
+    parser.add_argument('--language', '-l')
+    args = parser.parse_args()
+    main_display(args.query, args.filetype, args.language)
+
+
+def main_display(query, filetype=None, language=None):
+    search_url = compose_annas_archive_search_url(
+        query=query, 
+        filetype=filetype,
+        language=language,
+    )
+    content = requests.get(search_url).content
+    df_results = parse_annas_archive_results(content)
+    print_results(df_results)
 
 
 def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
@@ -96,10 +97,11 @@ def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
 
     print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
 
+
 def compose_annas_archive_search_url(
     query: str,
     filetype: FILETYPES=None,
-    language: valid_languages=None,
+    language: VALID_LANGUAGES=None,
     content_type: CONTENT_TYPES="book_any",
     sortby: SORT_OPTIONS=None,
 ) -> str:

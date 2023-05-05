@@ -35,12 +35,17 @@ def main():
     parser.add_argument('--edmonton_only', '-e', action='store_true')
     parser.add_argument('--first_edition', '-f', action='store_const', const='on')
     args = parser.parse_args()
+    generate_main_display(args.edmonton_only)(args.title, args.author, args.edmonton_only, args.first_edition)
 
-    url_compose = compose_abebooks_search_url if not args.edmonton_only else compose_abebooks_edmonton_search_url
-    search_url = url_compose(author=args.author, title=args.title, first_edition=args.first_edition)
-    content = requests.get(search_url).content
-    df_results = parse_abebooks_results_html(content)
-    print_results(df_results)
+
+def generate_main_display(edmonton_only):
+    url_compose = compose_abebooks_search_url if not edmonton_only else compose_abebooks_edmonton_search_url
+    def main_display(title, author, first_edition=None):
+        search_url = url_compose(author=args.author, title=args.title, first_edition=args.first_edition)
+        content = requests.get(search_url).content
+        df_results = parse_abebooks_results_html(content)
+        print_results(df_results)
+    return main_display
 
 
 def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
