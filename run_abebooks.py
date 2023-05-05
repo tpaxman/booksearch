@@ -26,6 +26,12 @@ def generate_main_display(edmonton_only):
 
 
 def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
+    
+    if df_results.empty:
+        print('no results')
+        return
+
+
     df_formatted = (
         df_results
         .assign(
