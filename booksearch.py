@@ -4,6 +4,7 @@ import tabulate
 import tools.bibliocommons as biblio
 import tools.abebooks as abe
 import tools.annas_archive as annas
+import tools.goodreads as goodreads
 import numpy as np
 import pandas as pd
 
@@ -12,37 +13,65 @@ USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--title', '-t', nargs='+')
+    parser.add_argument('--title', '-t', nargs='+', default=[])
     parser.add_argument('--author', '-a')
+    parser.add_argument('--max_num_results', '-n', type=int)
     #parser.add_argument('--sources', '-s', nargs='*')
     args = parser.parse_args()
 
     title_joined = ' '.join(args.title)
+    query = ' '.join(x for x in (title_joined, args.author) if x)
 
-    print("\n\nABEBOOKS:\n")
+    search_url_goodreads = goodreads.compose_search_url(query = query)
     search_url_abebooks = abe.compose_search_url(title=title_joined, author=args.author)
-    print_results_abebooks(search_url_abebooks)
-
-    print("\n\nLIBRARY:\n")
-    search_urls = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
+    search_url_annas_archive = annas.compose_search_url(query=query)
+    search_urls_library = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
                    for library in ('epl', 'calgary')]
-    print_results_bibliocommons(search_urls)
 
-    print("\n\nANNA'S ARCHIVE:\n")
-    search_url_annas_archive = annas.compose_search_url(query=' '.join(x for x in (title_joined, args.author) if x))
-    print_results_annas_archive(search_url_annas_archive)
+    formatted_tables = {
+        "goodreads": format_results_goodreads(search_url_goodreads),
+        "abebooks": format_results_abebooks(search_url_abebooks),
+        "library": format_results_bibliocommons(search_urls_library),
+        "anna's archive": format_results_annas_archive(search_url_annas_archive),
+    }
 
-    print('\n\n')
+    for name, df in formatted_tables.items():
+        if not df.empty:
+            print(f"\n\n{name.upper()}:\n")
+            print_table(df.head(args.max_num_results))
+
+    print('\n')
 
 
-def print_results_annas_archive(search_url: str) -> None:
+def print_table(df: pd.DataFrame) -> None:
+    print(tabulate.tabulate(df, showindex=False, headers=df.columns))
+
+
+def format_results_goodreads(search_url: str) -> None:
+    content = requests.get(search_url).content
+    df_results = goodreads.parse_results(content)
+    df_formatted = (df_results
+        .drop(columns='link')
+        .assign(
+            title = lambda t: t['title'].str[:20],
+            author = lambda t: t['author'].str[:30],
+        )
+        .rename(columns={
+            "title": "Title",
+            "author": "Author",
+            "avg_rating": "Rating",
+            "num_ratings": "Num Ratings",
+        })
+    )
+    return df_formatted
+
+
+def format_results_annas_archive(search_url: str) -> pd.DataFrame:
     content = requests.get(search_url).content
     df_results = annas.parse_results(content)
 
-
     if df_results.empty:
-        print('no results')
-        return
+        return df_results
 
     df_formatted = (
         df_results
@@ -63,18 +92,18 @@ def print_results_annas_archive(search_url: str) -> None:
         })
     )
 
-    print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
+    return df_formatted
 
 
-def print_results_bibliocommons(search_urls: list) -> None:
+
+def format_results_bibliocommons(search_urls: list) -> None:
     results_tables = []
     for search_url in search_urls:
         content = requests.get(search_url).content
         df_results = biblio.parse_results(content)
 
         if df_results.empty:
-            print('no results')
-            return
+            return df_results
 
         df_formatted = (
             df_results
@@ -97,17 +126,16 @@ def print_results_bibliocommons(search_urls: list) -> None:
         results_tables.append(df_formatted)
     
     df_all_results = pd.concat(results_tables)
-    print(tabulate.tabulate(df_all_results, showindex=False, headers=df_all_results.columns))
+    return df_all_results
 
 
 
-def print_results_abebooks(search_url: str) -> None:
+def format_results_abebooks(search_url: str) -> None:
     content = requests.get(search_url).content
     df_results = abe.parse_results(content)
 
     if df_results.empty:
-        print('no results')
-        return
+        return df_results
 
     df_formatted = (
         df_results
@@ -155,7 +183,7 @@ def print_results_abebooks(search_url: str) -> None:
         })
     )
 
-    print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
+    return df_formatted
 
 
 

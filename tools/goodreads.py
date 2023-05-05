@@ -9,15 +9,15 @@ from tools.webscraping import get_text
 # TODO: figure out why goodreads only returns 5 things
 # TODO: sort by most ratings maybe? Getting some weird values otherwise
 
-def run_goodreads_search(search_string: str) -> pd.DataFrame:
-
-    quoted_search_string = quote_plus(search_string)
-    #search_url = f"https://www.goodreads.com/search?q={quoted_search_string}"
+def compose_search_url(query: str) -> str:
+    quoted_search_string = quote_plus(query)
     search_url = f"https://www.goodreads.com/search?utf8=%E2%9C%93&q={quoted_search_string}&search_type=books&search%5Bfield%5D=on"
-    print(f"GOODREADS: {search_url}")
-    response = requests.get(search_url)
-    search_results_html = response.content
-    soup = BeautifulSoup(search_results_html, features='html.parser')
+    return search_url
+
+
+def parse_results(content: bytes) -> pd.DataFrame:
+
+    soup = BeautifulSoup(content, features='html.parser')
 
     try:
         result_items = soup.find('table', class_='tableList').find_all('tr')
@@ -45,7 +45,10 @@ def run_goodreads_search(search_string: str) -> pd.DataFrame:
             "link": "https://www.goodreads.com/" + (title['href'] if title else ''),
         })
 
-    data = pd.DataFrame(result_items_data)
+    data = (
+        pd.DataFrame(result_items_data)
+        .sort_values('num_ratings', ascending=False)
+    )
 
     # TODO: figure out how to implement this re-filtering stuff
     # data = (data
