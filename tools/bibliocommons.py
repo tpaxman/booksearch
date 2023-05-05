@@ -1,4 +1,5 @@
 from functools import partial
+import re
 import numpy as np
 from bs4 import BeautifulSoup
 import requests
@@ -110,6 +111,12 @@ def get_available_formats(parsed_data: pd.DataFrame) -> str:
         .pipe('\n'.join)
     )
     #return data.true_format.drop_duplicates().to_list()
+
+
+
+def extract_library_subdomain(search_url: str) -> str:
+    return re.search(r'https://(\w+)', search_url).group(1)
+
 
 
 compose_search_url_epl = generate_compose_search_url_function('epl')

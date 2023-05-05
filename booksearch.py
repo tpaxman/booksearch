@@ -5,6 +5,7 @@ import tools.bibliocommons as biblio
 import tools.abebooks as abe
 import tools.annas_archive as annas
 import numpy as np
+import pandas as pd
 
 from forex_python.converter import CurrencyRates
 USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
@@ -18,25 +19,20 @@ def main():
 
     title_joined = ' '.join(args.title)
 
-    print("\nABEBOOKS")
+    print("\n\nABEBOOKS:\n")
     search_url_abebooks = abe.compose_search_url(title=title_joined, author=args.author)
     print_results_abebooks(search_url_abebooks)
 
-    print("\nABEBOOKS (EDMONTON)")
-    search_url_abebooks_edmonton = abe.compose_search_url_edmonton(title=title_joined, author=args.author)
-    print_results_abebooks(search_url_abebooks_edmonton)
+    print("\n\nLIBRARY:\n")
+    search_urls = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
+                   for library in ('epl', 'calgary')]
+    print_results_bibliocommons(search_urls)
 
-    print("\nANNA'S ARCHIVE")
+    print("\n\nANNA'S ARCHIVE:\n")
     search_url_annas_archive = annas.compose_search_url(query=' '.join(x for x in (title_joined, args.author) if x))
     print_results_annas_archive(search_url_annas_archive)
 
-    print("\nEPL")
-    search_url_epl = biblio.compose_search_url_epl(title=title_joined, author=args.author)
-    print_results_bibliocommons(search_url_epl)
-
-    print("\nCPL")
-    search_url_cpl = biblio.compose_search_url_calgary(title=title_joined, author=args.author)
-    print_results_bibliocommons(search_url_cpl)
+    print('\n\n')
 
 
 def print_results_annas_archive(search_url: str) -> None:
@@ -70,31 +66,40 @@ def print_results_annas_archive(search_url: str) -> None:
     print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
 
 
-def print_results_bibliocommons(search_url: str) -> None:
-    content = requests.get(search_url).content
-    df_results = biblio.parse_results(content)
+def print_results_bibliocommons(search_urls: list) -> None:
+    results_tables = []
+    for search_url in search_urls:
+        content = requests.get(search_url).content
+        df_results = biblio.parse_results(content)
 
-    if df_results.empty:
-        print('no results')
-        return
+        if df_results.empty:
+            print('no results')
+            return
 
-    df_formatted = (
-        df_results
-        .assign(
-            title = lambda t: t['title'].str[:20],
-            author = lambda t: t['author'].str[:15], 
+        df_formatted = (
+            df_results
+            .assign(
+                title = lambda t: t['title'].str[:20],
+                author = lambda t: t['author'].str[:15], 
+            )
+            .assign(library = biblio.extract_library_subdomain(search_url))
+            [['library', 'title', 'author', 'true_format', 'hold_counts']]
+            .rename(columns={
+                'library': 'Library',
+                'title': 'Title',
+                'author': 'Author',
+                'true_format': 'Format',
+                'hold_counts': 'Holds',
+                'eresource_link': 'e-Resource',
+            })
         )
-        [['title', 'author', 'true_format', 'hold_counts']]
-        .rename(columns={
-            'title': 'Title',
-            'author': 'Author',
-            'true_format': 'Format',
-            'hold_counts': 'Holds',
-            'eresource_link': 'e-Resource',
-        })
-    )
 
-    print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
+        results_tables.append(df_formatted)
+    
+    df_all_results = pd.concat(results_tables)
+    print(tabulate.tabulate(df_all_results, showindex=False, headers=df_all_results.columns))
+
+
 
 def print_results_abebooks(search_url: str) -> None:
     content = requests.get(search_url).content
