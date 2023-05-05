@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 from typing import Literal
 import requests
 from urllib.parse import quote, quote_plus
-from forex_python.converter import CurrencyRates
 import re
 import pandas as pd
 import numpy as np
@@ -11,7 +10,6 @@ from functools import partial
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 
 # TODO: decide if this conversion is really necessary
-USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
 ALHAMBRA_BOOKS_SELLER_ID = 3054340
 EDMONTON_BOOK_STORE_SELLER_ID = 19326
@@ -115,13 +113,9 @@ def compose_search_url(
         "sgnd": signed,
         "saction=allow&slist": quote_plus(' '.join(str(x) for x in sellers)) if sellers else None #TODO: handle this one differently (must have the saction=allow as well
     }
-
     root_url = "https://www.abebooks.com/servlet/SearchResults?"
-
     arguments_string = '&'.join(f'{k}={quote(str(v))}' for k, v in arguments.items() if v)
-
     search_url = root_url + arguments_string
-
     return search_url
 
 
@@ -181,13 +175,8 @@ def parse_results(content: bytes) -> pd.DataFrame:
             "bookEdition": "edition",
             "bookFormat": "binding",
         })
-        .assign(
-            in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
-            price_cad = lambda t: t.price_usd.astype(float).multiply(USD_TO_CAD_FACTOR).round(0).astype(int),
-            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0, t.shipping_cost_usd.astype(float).multiply(USD_TO_CAD_FACTOR).round(0).astype(int)),
-            condition = lambda t: t.about.apply(get_condition_description),
-            total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
-        )
+        .assign(condition = lambda t: t.about.apply(get_condition_description))
+        # TODO: add another way to get "edition" here (in case it's non-existant) by parsing 'about'
     )
 
     return df_results
@@ -197,6 +186,7 @@ def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
     return condition
+
 
 # TODO: IMPLEMENT
 def get_condition_rank(condition_description: str) -> int:
