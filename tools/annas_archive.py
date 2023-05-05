@@ -4,7 +4,28 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
-from tools.webscraping import get_text
+#from tools.webscraping import get_text
+from webscraping import get_text
+import tabulate
+import argparse
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('query')
+    parser.add_argument('--filetype', '-f')
+    parser.add_argument('--language', '-l')
+    args = parser.parse_args()
+
+    search_url = compose_annas_archive_search_url(
+        query=args.query, 
+        filetype=args.filetype,
+        language=args.language,
+    )
+
+    content = requests.get(search_url).content
+    df_results = parse_annas_archive_results(content)
+    print_results(df_results)
 
 
 CONTENT_TYPES = Literal[
@@ -52,6 +73,29 @@ SORT_OPTIONS = Literal[
 # TODO: finish filling these in later
 valid_languages = Literal['_empty', 'en', 'fr', 'de', 'es']
 
+
+def print_results(df_results: pd.DataFrame) -> pd.DataFrame:
+    df_formatted = (
+        df_results
+        .assign(
+            title = lambda t: t['title'].str[:20],
+            author = lambda t: t['author'].str[:30], 
+            filesize_mb = lambda t: t['filesize_mb'].astype('int'),
+            publisher = lambda t: t['publisher'].str[:50]
+        )
+        [['title', 'author', 'filetype', 'filesize_mb', 'language', 'publisher']]
+        .rename(columns={
+            'title': 'Title',
+            'author': 'Author',
+            'filetype': 'Type',
+            'filesize_mb': 'Size (MB)',
+            'language': 'Language',
+            'publisher': 'Publisher',
+        })
+    )
+
+    print(tabulate.tabulate(df_formatted, showindex=False, headers=df_formatted.columns))
+
 def compose_annas_archive_search_url(
     query: str,
     filetype: FILETYPES=None,
@@ -66,6 +110,7 @@ def compose_annas_archive_search_url(
     arguments = {
         "q": quote_plus(query),
         "filetype": filetype,
+        "content": content_type,
         "lang": language,
         "ext": filetype,
         "sort": sortby,
@@ -155,3 +200,5 @@ def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
     return data
 
 
+if __name__ == '__main__':
+    main()
