@@ -32,13 +32,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--title', '-t')
     parser.add_argument('--author', '-a')
+    parser.add_argument('--edmonton_only', '-e', action='store_true')
     args = parser.parse_args()
 
-    search_url = compose_abebooks_search_url(author=args.author, title=args.title)
+    url_compose = compose_abebooks_search_url if not args.edmonton_only else compose_abebooks_edmonton_search_url
+    search_url = url_compose(author=args.author, title=args.title)
     content = requests.get(search_url).content
     df_results = parse_abebooks_results_html(content)
     df_formatted = format_results(df_results)
     print(tabulate.tabulate(df_formatted, showindex=False))
+
     #print_series(df_results.iloc[0].loc[['title', 'author', 'binding', 'condition', 'seller', 'price_cad', 'total_price_cad']])
     #for x in df_results.T.to_dict(orient='series').values():
     #    print_result(x)
@@ -52,11 +55,25 @@ def format_results(df_results: pd.DataFrame) -> pd.DataFrame:
     return (
         df_results
         .assign(
-            title_snippet = lambda t: t['title'].str[:20] + '...',
-            price_description = lambda t: '$' + t.price_cad.astype('int').astype('string') + ' (+$' + t.shipping_cost_cad.astype('int').astype('string') + ')',
+            title = lambda t: t['title'].str[:20] + '...',
+            author = lambda t: t['author'].str[:20] + '...',
+            price_cad = lambda t: (
+                t.price_cad.astype('int').astype('string')
+                + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
+                + ' = ' + t.total_price_cad.astype('int').astype('string')
+            )
         )
-        [['title_snippet', 'author', 'price_description', 'binding', 'condition', 'seller']]
+        [['title', 'author', 'price_cad', 'binding', 'condition', 'seller']]
+        .rename(columns={
+            'title': 'Title',
+            'author': 'Author',
+            'price_cad': 'Price (CAD)',
+            'binding': 'Binding',
+            'condition': 'Condition',
+            'seller': 'Seller'
+        })
     )
+
 
 
 
