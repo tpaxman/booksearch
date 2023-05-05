@@ -15,13 +15,17 @@ def main():
 
     print("\nANNA'S ARCHIVE")
     ann.main_display(query=args.title + ' ' + args.author)
+
     print("\nABEBOOKS")
     abe.generate_main_display(edmonton_only=False)(title=args.title, author=args.author)
+
     print("\nABEBOOKS (EDMONTON)")
     abe.generate_main_display(edmonton_only=True)(title=args.title, author=args.author)
+
     print("\nEPL")
     search_url_epl = generate_bibliocommons_search_url_composer('epl')(title=args.title, author=args.author)
     print_results_bibliocommons(search_url_epl)
+
     print("\nCPL")
     search_url_cpl = generate_bibliocommons_search_url_composer('calgary')(title=args.title, author=args.author)
     print_results_bibliocommons(search_url_cpl)
