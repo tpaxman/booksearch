@@ -26,7 +26,7 @@ SELLERS = {
 ON_OFF_TYPE = Literal['on', 'off']
 
 
-def compose_abebooks_search_url(
+def compose_search_url(
     title: str=None,
     author: str=None,
     keywords: str=None,
@@ -125,12 +125,12 @@ def compose_abebooks_search_url(
     return search_url
 
 
-def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
+def parse_results(content: bytes) -> pd.DataFrame:
     """
     Parse the response content returned by an Abebooks search request
     """
 
-    soup = BeautifulSoup(results_html, features='html.parser')
+    soup = BeautifulSoup(content, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
 
     if not results_block:
@@ -193,16 +193,6 @@ def parse_abebooks_results_html(results_html: bytes) -> pd.DataFrame:
     return df_results
 
 
-def get_first_abebooks_result(df_results: pd.DataFrame, binding: Literal['hardcover', 'softcover']=None) -> dict:
-    if not df_results.empty:
-        df_results_filtered = df_results.loc[lambda t: t.binding.str.lower().str.contains(binding.lower())] if binding else df_results
-        return df_results_filtered.iloc[0].to_dict()
-    else:
-        dict()
-
-def print_abebooks_summary(df_results: pd.DataFrame) -> None:
-    pass
-
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
@@ -245,4 +235,4 @@ def display_results(df_results: pd.DataFrame) -> None:
         print('')
 
 
-compose_abebooks_edmonton_search_url = partial(compose_abebooks_search_url, sellers=SELLERS.values())
+compose_search_url_edmonton = partial(compose_search_url, sellers=SELLERS.values())

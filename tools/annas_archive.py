@@ -52,7 +52,7 @@ SORT_OPTIONS = Literal[
 VALID_LANGUAGES = Literal['_empty', 'en', 'fr', 'de', 'es']
 
 
-def compose_annas_archive_search_url(
+def compose_search_url(
     query: str,
     filetype: FILETYPES=None,
     language: VALID_LANGUAGES=None,
@@ -77,10 +77,10 @@ def compose_annas_archive_search_url(
     return search_url
 
 
-def parse_annas_archive_results(results_html: bytes) -> pd.DataFrame:
+def parse_results(content: bytes) -> pd.DataFrame:
 
     results_uncommented_html = (
-        results_html
+        content
         .decode('utf-8')
         .replace('<!--', '')
         .replace('-->', '')

@@ -22,10 +22,9 @@ valid_library_subdomains = Literal[
 # TODO: make this exhaustive
 # VALID_FORMATCODES = ['BK', 'AB', 'EBOOK']
 
-def generate_bibliocommons_search_url_composer(library_subdomain: valid_library_subdomains) -> Callable:
-
+def generate_compose_search_url_function(library_subdomain: valid_library_subdomains) -> Callable:
     # TODO: add in exhaustive set of allowable inputs
-    def compose_bibliocommons_search_url(
+    def compose_search_url(
         title: str=None,
         author: str=None,
         anywhere: str=None,
@@ -42,12 +41,9 @@ def generate_bibliocommons_search_url_composer(library_subdomain: valid_library_
         search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
         return search_url
 
-    return compose_bibliocommons_search_url
+    return compose_search_url
 
-
-
-def parse_bibliocommons_search_results(results_html: bytes, title_refilter: str = None, author_refilter: str = None) -> pd.DataFrame:
-
+def parse_results(results_html: bytes, title_refilter: str = None, author_refilter: str = None) -> pd.DataFrame:
     soup = BeautifulSoup(results_html, features='html.parser')
 
     try:
@@ -115,3 +111,6 @@ def get_available_formats(parsed_data: pd.DataFrame) -> str:
     )
     #return data.true_format.drop_duplicates().to_list()
 
+
+compose_search_url_epl = generate_compose_search_url_function('epl')
+compose_search_url_calgary = generate_compose_search_url_function('calgary')
