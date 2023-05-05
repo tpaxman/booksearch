@@ -16,7 +16,7 @@ def main():
     parser.add_argument('--title', '-t', nargs='+', default=[])
     parser.add_argument('--author', '-a')
     parser.add_argument('--max_num_results', '-n', type=int)
-    #parser.add_argument('--sources', '-s', nargs='*')
+    parser.add_argument('--sources', '-s', nargs='+')
     args = parser.parse_args()
 
     title_joined = ' '.join(args.title)
@@ -28,17 +28,21 @@ def main():
     search_urls_library = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
                    for library in ('epl', 'calgary')]
 
-    formatted_tables = {
-        "goodreads": format_results_goodreads(search_url_goodreads),
-        "abebooks": format_results_abebooks(search_url_abebooks),
-        "library": format_results_bibliocommons(search_urls_library),
-        "anna's archive": format_results_annas_archive(search_url_annas_archive),
-    }
+    options = [
+        ("goodreads", format_results_goodreads, search_url_goodreads),
+        ("abebooks", format_results_abebooks, search_url_abebooks),
+        ("library", format_results_bibliocommons, search_urls_library),
+        ("annas", format_results_annas_archive, search_url_annas_archive),
+    ]
 
-    for name, df in formatted_tables.items():
+    selected_options = [x for x in options if x[0] in args.sources] if args.sources else options
+
+    for name, function, url in selected_options:
+        df = function(url)
         if not df.empty:
+            df_limited = df.head(args.max_num_results)
             print(f"\n\n{name.upper()}:\n")
-            print_table(df.head(args.max_num_results))
+            print_table(df_limited)
 
     print('\n')
 
@@ -53,7 +57,7 @@ def format_results_goodreads(search_url: str) -> None:
     df_formatted = (df_results
         .drop(columns='link')
         .assign(
-            title = lambda t: t['title'].str[:20],
+            title = lambda t: t['title'].str[:30],
             author = lambda t: t['author'].str[:30],
         )
         .rename(columns={
@@ -76,7 +80,7 @@ def format_results_annas_archive(search_url: str) -> pd.DataFrame:
     df_formatted = (
         df_results
         .assign(
-            title = lambda t: t['title'].str[:20],
+            title = lambda t: t['title'].str[:30],
             author = lambda t: t['author'].str[:30], 
             filesize_mb = lambda t: t['filesize_mb'].astype('int'),
             publisher = lambda t: t['publisher'].str[:50]
@@ -108,7 +112,7 @@ def format_results_bibliocommons(search_urls: list) -> None:
         df_formatted = (
             df_results
             .assign(
-                title = lambda t: t['title'].str[:20],
+                title = lambda t: t['title'].str[:30],
                 author = lambda t: t['author'].str[:15], 
             )
             .assign(library = biblio.extract_library_subdomain(search_url))
@@ -163,8 +167,8 @@ def format_results_abebooks(search_url: str) -> None:
                 ),
         )
         .assign(
-            title = lambda t: t['title'].str[:20],
-            author = lambda t: t['author'].str[:15], 
+            title = lambda t: t['title'].str[:30],
+            author = lambda t: t['author'].str[:20], 
             binding = lambda t: t['binding'].str.lower(),
             about = lambda t: t['about'].str[:40],
             edition = lambda t: t.edition if 'edition' in t.columns else '',
