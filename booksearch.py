@@ -14,7 +14,7 @@ def main():
     args = parser.parse_args()
 
     print("\nANNA'S ARCHIVE")
-    ann.main_display(query=args.title + ' ' + args.author)
+    ann.main_display(query=' '.join(x for x in (args.title, args.author) if x))
 
     print("\nABEBOOKS")
     abe.generate_main_display(edmonton_only=False)(title=args.title, author=args.author)
