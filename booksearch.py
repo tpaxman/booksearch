@@ -37,22 +37,22 @@ def main():
     search_urls_library = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
                    for library in ('epl', 'calgary')]
 
-    options = [
+    sources = [
         ("goodreads", format_results_goodreads, search_url_goodreads),
         ("abebooks", format_results_abebooks, search_url_abebooks),
         ("library", format_results_bibliocommons, search_urls_library),
         ("annas", format_results_annas_archive, search_url_annas_archive),
     ]
 
-    selected_options = [x for x in options if x[0] in args.sources] if args.sources else options
+    selected_sources = [x for x in sources if x[0] in args.sources] if args.sources else sources
 
-    for name, function, url in selected_options:
-        df = function(url)
-        if not df.empty:
-            df_limited = df.head(args.max_num_results)
-            print(f"\n\n{name.upper()}:\n")
-            print_table(df_limited)
+    sources_results = [(name, parser, url, parser(url)) for name, parser, url in selected_sources]
 
+    sources_results_notempty = [(name, parser, url, df) for name, parser, url, df in sources_results if not df.empty]
+
+    for name, parser, url, df in sources_results_notempty:
+        print(f"\n\n{name.upper()}:\n")
+        print_table(df.head(args.max_num_results))
     print('\n')
 
 
