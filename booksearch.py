@@ -6,6 +6,9 @@
 # TODO: script option - need to download or try to download
 # TODO: list of books that have no ebook version
 # TODO: ensure abebooks is filtering to used books by default
+# TODO: split abebooks sellers into store, city, country
+# TODO: add more language details and search optionality
+# TODO: split up the CPL and EPL again perhaps
 
 import argparse
 import requests
@@ -38,26 +41,39 @@ def main():
                    for library in ('epl', 'calgary')]
 
     sources = [
-        ("goodreads", format_results_goodreads, search_url_goodreads),
-        ("abebooks", format_results_abebooks, search_url_abebooks),
-        ("library", format_results_bibliocommons, search_urls_library),
-        ("annas", format_results_annas_archive, search_url_annas_archive),
+        {
+            "source": "goodreads", 
+            "parser": format_results_goodreads, 
+            "url": search_url_goodreads
+        },
+        {
+            "source": "abebooks", 
+            "parser": format_results_abebooks, 
+            "url": search_url_abebooks
+        },
+        {
+            "source": "library", 
+            "parser": format_results_bibliocommons, 
+            "url": search_urls_library
+        },
+        {
+            "source": "annas", 
+            "parser": format_results_annas_archive, 
+            "url": search_url_annas_archive
+        },
     ]
-
-    selected_sources = [x for x in sources if x[0] in args.sources] if args.sources else sources
-
-    sources_results = [(name, parser, url, parser(url)) for name, parser, url in selected_sources]
-
-    sources_results_notempty = [(name, parser, url, df) for name, parser, url, df in sources_results if not df.empty]
-
-    for name, parser, url, df in sources_results_notempty:
-        print(f"\n\n{name.upper()}:\n")
-        print_table(df.head(args.max_num_results))
-    print('\n')
+    selected_sources = [x for x in sources if x['source'] in user_sources] if (user_sources := args.sources) else sources
+    sources_results = [x | {'df': x['parser'](x['url'])} for x in selected_sources]
+    sources_results_notempty = [x for x in sources_results if not x['df'].empty]
+    for x in sources_results_notempty:
+        source = x['source'].upper()
+        url = u if isinstance((u := x['url']), str) else '\n'.join(u)
+        df = stringify_table(x['df'].head(args.max_num_results))
+        print('\n' + source + '\n' + url + '\n\n' +  df + '\n')
 
 
-def print_table(df: pd.DataFrame) -> None:
-    print(tabulate.tabulate(df, showindex=False, headers=df.columns))
+def stringify_table(df: pd.DataFrame) -> str:
+    return tabulate.tabulate(df, showindex=False, headers=df.columns)
 
 
 def format_results_goodreads(search_url: str) -> None:
