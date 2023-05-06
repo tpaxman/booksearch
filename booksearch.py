@@ -1,3 +1,12 @@
+# TODO: print url out with each source as well
+# TODO: add option to open all results in selenium?
+# TODO: add modes: general, summary, batch, values, availability, etc.
+# TODO: merge calibre and goodreads data with search results too to get various insights
+# TODO: make script to find - "owned ebooks that I haven't flagged in Goodreads"
+# TODO: script option - need to download or try to download
+# TODO: list of books that have no ebook version
+# TODO: ensure abebooks is filtering to used books by default
+
 import argparse
 import requests
 import tabulate
