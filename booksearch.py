@@ -9,7 +9,7 @@
 # TODO: split abebooks sellers into store, city, country
 # TODO: add more language details and search optionality
 # TODO: split up the CPL and EPL again perhaps
-
+# TODO: create a 'summary string' for each source e.g. 'abe: $10 (soft), $15 (hard), 56 copies. Edmonton: Bookseller ($15)' or something 
 import argparse
 import requests
 import tabulate
