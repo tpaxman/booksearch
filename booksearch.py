@@ -10,6 +10,8 @@
 # TODO: add more language details and search optionality
 # TODO: split up the CPL and EPL again perhaps
 # TODO: create a 'summary string' for each source e.g. 'abe: $10 (soft), $15 (hard), 56 copies. Edmonton: Bookseller ($15)' or something 
+# TODO: remove the request part from all the formatting functions
+
 import argparse
 import requests
 from typing import Callable
@@ -22,13 +24,13 @@ import numpy as np
 import pandas as pd
 
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--title', '-t', nargs='+', default=[])
     parser.add_argument('--author', '-a')
     parser.add_argument('--max_num_results', '-n', type=int)
     parser.add_argument('--sources', '-s', nargs='+')
+    parser.add_argument('--width', '-w', type=int, default=30)
     args = parser.parse_args()
 
     title_joined = ' '.join(args.title)
@@ -69,7 +71,7 @@ def main():
         source = x['source'].upper()
         url = u if isinstance((u := x['url']), str) else '\n'.join(u)
         df = x['df'].head(args.max_num_results)
-        df_str = clip_table(df, 30)
+        df_str = clip_table(df, args.width)
         print('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
 
 
@@ -123,6 +125,7 @@ def format_results_annas_archive(search_url: str) -> pd.DataFrame:
     return df_formatted
 
 
+# TODO: split this back into two things
 def format_results_bibliocommons(search_urls: list) -> None:
     results_tables = []
     for search_url in search_urls:
