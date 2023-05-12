@@ -8,7 +8,6 @@
 # TODO: ensure abebooks is filtering to used books by default
 # TODO: split abebooks sellers into store, city, country
 # TODO: add more language details and search optionality
-# TODO: split up the CPL and EPL again perhaps
 # TODO: create a 'summary string' for each source e.g. 'abe: $10 (soft), $15 (hard), 56 copies. Edmonton: Bookseller ($15)' or something 
 # TODO: remove the request part from all the formatting functions
 
@@ -17,6 +16,7 @@ import requests
 from typing import Callable
 import tabulate
 import tools.bibliocommons as biblio
+from functools import reduce
 import tools.abebooks as abe
 import tools.annas_archive as annas
 import tools.goodreads as goodreads
@@ -27,61 +27,79 @@ import pandas as pd
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--title', '-t', nargs='+', default=[])
-    parser.add_argument('--author', '-a')
+    parser.add_argument('--author', '-a', nargs='+', default=[])
     parser.add_argument('--max_num_results', '-n', type=int)
-    parser.add_argument('--sources', '-s', nargs='+')
+    parser.add_argument('--sources', '-s', nargs='+', default=[])
     parser.add_argument('--width', '-w', type=int, default=30)
     args = parser.parse_args()
 
-    title_joined = ' '.join(args.title)
-    query = ' '.join(x for x in (title_joined, args.author) if x)
+    AUTHOR = ' '.join(args.author)
+    TITLE = ' '.join(args.title)
+    QUERY = ' '.join(x for x in (TITLE, AUTHOR) if x)
+    MAX_NUM_RESULTS = args.max_num_results
+    SOURCES = args.sources
+    WIDTH = args.width
 
-    search_url_goodreads = goodreads.compose_search_url(query = query)
-    search_url_abebooks = abe.compose_search_url(title=title_joined, author=args.author)
-    search_url_annas_archive = annas.compose_search_url(query=query)
-    search_urls_library = [biblio.generate_compose_search_url_function(library)(title=title_joined, author=args.author) 
-                   for library in ('epl', 'calgary')]
+    sources_data = {
+        "goodreads": {
+            "function": pipe(get_content, goodreads.parse_results, format_results_goodreads),
+            "url": goodreads.compose_search_url(query=QUERY),
+        },
+        "abebooks": {
+            "function": pipe(get_content, abe.parse_results, format_results_abebooks),
+            "url": abe.compose_search_url(title=TITLE, author=AUTHOR),
+        },
+        "calgary": {
+            "function": pipe(get_content, biblio.parse_results, format_results_bibliocommons),
+            "url": biblio.generate_compose_search_url_function('calgary')(title=TITLE, author=AUTHOR),
+        },
+        "epl": {
+            "function": pipe(get_content, biblio.parse_results, format_results_bibliocommons),
+            "url": biblio.generate_compose_search_url_function('epl')(title=TITLE, author=AUTHOR),
+        },
+        "annas": {
+            "function": pipe(get_content, annas.parse_results, format_results_annas_archive),
+            "url": annas.compose_search_url(query=QUERY),
+        },
+    }
 
-    sources = [
-        {
-            "source": "goodreads", 
-            "parser": format_results_goodreads, 
-            "url": search_url_goodreads
-        },
-        {
-            "source": "abebooks", 
-            "parser": format_results_abebooks, 
-            "url": search_url_abebooks
-        },
-        {
-            "source": "library", 
-            "parser": format_multiple_results_bibliocommons, 
-            "url": search_urls_library
-        },
-        {
-            "source": "annas", 
-            "parser": format_results_annas_archive, 
-            "url": search_url_annas_archive
-        },
-    ]
-    selected_sources = [x for x in sources if x['source'] in user_sources] if (user_sources := args.sources) else sources
-    sources_results = [x | {'df': x['parser'](x['url'])} for x in selected_sources]
-    sources_results_notempty = [x for x in sources_results if not x['df'].empty]
-    for x in sources_results_notempty:
-        source = x['source'].upper()
-        url = u if isinstance((u := x['url']), str) else '\n'.join(u)
-        df = x['df'].head(args.max_num_results)
-        df_str = clip_table(df, args.width)
-        print('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
+    printable_results = []
+    for k, v in sources_data.items():
+
+        if k in SOURCES or not SOURCES:
+            function = v['function']
+            url = v['url']
+            df = function(url)
+
+            if not df.empty:
+                source = k.upper()
+                df_str = clip_table(df.head(MAX_NUM_RESULTS), WIDTH)
+                printable_results.append('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
+
+    for x in printable_results:
+        print(x)
+
+
+
+def get_content(url: str) -> bytes:
+    return requests.get(url).content
+
+
+def pipe(*functions):
+    def combined_function(seed):
+        return reduce(lambda x, f: f(x), functions, seed)
+    return combined_function
+
+
+def run_pipe(*everything):
+    seed = everything[0]
+    functions = everything[1:]
+    return pipe(*functions)(seed)
 
 
 def select_rename(column_mapper: dict) -> Callable:
     return lambda df: df.loc[:, list(column_mapper)].rename(columns=column_mapper)
 
-# def select_rename(column_mapper: dict) -> Callable:
-#     def rename(df: pd.DataFrame) -> pd.DataFrame:
-#         return df.loc[list(column_mapper)].rename(columns=column_mapper)
-#     return rename
 
 def clip_table(df: pd.DataFrame, width: int) -> pd.DataFrame:
     df_clipped = df.assign(**{c: s.astype('string').str[:width] for c, s in df.to_dict(orient='series').items()})
@@ -89,9 +107,13 @@ def clip_table(df: pd.DataFrame, width: int) -> pd.DataFrame:
     return df_string
 
 
-def format_results_goodreads(search_url: str) -> None:
-    content = requests.get(search_url).content
-    df_results = goodreads.parse_results(content)
+def wrap_with_empty_df_return(formatter: Callable) -> Callable:
+    def new_formatter(df):
+        return df if df.empty else formatter(df)
+    return new_formatter
+
+
+def format_results_goodreads(df_results: pd.DataFrame) -> pd.DataFrame:
     df_formatted = (df_results
         .drop(columns='link')
         .rename(columns={
@@ -104,13 +126,8 @@ def format_results_goodreads(search_url: str) -> None:
     return df_formatted
 
 
-def format_results_annas_archive(search_url: str) -> pd.DataFrame:
-    content = requests.get(search_url).content
-    df_results = annas.parse_results(content)
-
-    if df_results.empty:
-        return df_results
-
+@wrap_with_empty_df_return
+def format_results_annas_archive(df_results: pd.DataFrame) -> pd.DataFrame:
     column_mapper = {
         'title': 'Title',
         'author': 'Author',
@@ -119,21 +136,11 @@ def format_results_annas_archive(search_url: str) -> pd.DataFrame:
         'language': 'Language',
         'publisher': 'Publisher',
     }
-
-    df_formatted = select_rename(column_mapper)(df_results)
-
-    return df_formatted
+    return df_results.pipe(select_rename(column_mapper))
 
 
-# TODO: split this back into two things
-
-def format_results_bibliocommons(search_url: str) -> pd.DataFrame:
-    content = requests.get(search_url).content
-    df_results = biblio.parse_results(content)
-
-    if df_results.empty:
-        return df_results
-
+@wrap_with_empty_df_return
+def format_results_bibliocommons(df_results: pd.DataFrame) -> pd.DataFrame:
     column_mapper = {
         'title': 'Title',
         'author': 'Author',
@@ -141,28 +148,11 @@ def format_results_bibliocommons(search_url: str) -> pd.DataFrame:
         'hold_counts': 'Holds',
         'eresource_link': 'e-Resource',
     }
-
-    df_formatted = df_results.pipe(select_rename(column_mapper))
-    return df_formatted
+    return df_results.pipe(select_rename(column_mapper))
 
 
-def format_multiple_results_bibliocommons(search_urls: list) -> None:
-    results_tables = []
-    for search_url in search_urls:
-        df_formatted = format_results_bibliocommons(search_url).assign(Library = biblio.extract_library_subdomain(search_url))
-        results_tables.append(df_formatted)
-    
-    df_all_results = pd.concat(results_tables)
-    return df_all_results
-
-
-def format_results_abebooks(search_url: str) -> pd.DataFrame:
-    content = requests.get(search_url).content
-    df_results = abe.parse_results(content)
-
-    if df_results.empty:
-        return df_results
-
+@wrap_with_empty_df_return
+def format_results_abebooks(df_results: pd.DataFrame) -> pd.DataFrame:
     column_mapper = {
         'title': 'Title',
         'author': 'Author',
@@ -172,12 +162,10 @@ def format_results_abebooks(search_url: str) -> pd.DataFrame:
         'seller': 'Seller',
         'edition': 'Edition',
     }
-
-    df_formatted = (df_results
+    return (df_results
         .sort_values('total_price_cad')
         .pipe(select_rename(column_mapper))
     )
-    return df_formatted
 
 
 if __name__ == '__main__':
