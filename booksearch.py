@@ -40,49 +40,86 @@ def main():
     SOURCES = args.sources
     WIDTH = args.width
 
-    sources_data = {
+    BIBLIOCOMMONS_COLUMN_MAPPER = {
+        'title': 'Title',
+        'author': 'Author',
+        'true_format': 'Format',
+        'hold_counts': 'Holds',
+        'eresource_link': 'e-Resource',
+    }
+
+    SOURCES_DATA = {
         "goodreads": {
-            "function": pipe(get_content, goodreads.parse_results, format_results_goodreads),
+            "parser": goodreads.parse_results,
             "url": goodreads.compose_search_url(query=QUERY),
+            "column_mapper": {
+                "title": "Title",
+                "author": "Author",
+                "avg_rating": "Rating",
+                "num_ratings": "Num Ratings",
+            },
         },
         "abebooks": {
-            "function": pipe(get_content, abe.parse_results, format_results_abebooks),
+            "parser": abe.parse_results,
             "url": abe.compose_search_url(title=TITLE, author=AUTHOR),
+            "column_mapper": {
+                'title': 'Title',
+                'author': 'Author',
+                'price_description': 'Price (CAD)',
+                'binding': 'Binding',
+                'condition': 'Condition',
+                'seller': 'Seller',
+                'edition': 'Edition',
+            }
         },
         "calgary": {
-            "function": pipe(get_content, biblio.parse_results, format_results_bibliocommons),
+            "parser": biblio.parse_results,
             "url": biblio.generate_compose_search_url_function('calgary')(title=TITLE, author=AUTHOR),
+            "column_mapper": BIBLIOCOMMONS_COLUMN_MAPPER,
         },
         "epl": {
-            "function": pipe(get_content, biblio.parse_results, format_results_bibliocommons),
+            "parser": biblio.parse_results,
             "url": biblio.generate_compose_search_url_function('epl')(title=TITLE, author=AUTHOR),
+            "column_mapper": BIBLIOCOMMONS_COLUMN_MAPPER,
         },
         "annas": {
-            "function": pipe(get_content, annas.parse_results, format_results_annas_archive),
+            "parser": annas.parse_results,
             "url": annas.compose_search_url(query=QUERY),
+            "column_mapper": {
+                'title': 'Title',
+                'author': 'Author',
+                'filetype': 'Type',
+                'filesize_mb': 'Size (MB)',
+                'language': 'Language',
+                'publisher': 'Publisher',
+            }
         },
     }
 
     printable_results = []
-    for k, v in sources_data.items():
+    for k, v in SOURCES_DATA.items():
 
         if k in SOURCES or not SOURCES:
-            function = v['function']
             url = v['url']
-            df = function(url)
+            parser = v['parser']
+            column_mapper = v['column_mapper']
+            formatter = format_results(column_mapper)
+            df = pipe(lambda url: requests.get(url).content, parser, formatter)(url)
 
             if not df.empty:
                 source = k.upper()
                 df_str = clip_table(df.head(MAX_NUM_RESULTS), WIDTH)
                 printable_results.append('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
 
+
     for x in printable_results:
         print(x)
 
 
-
-def get_content(url: str) -> bytes:
-    return requests.get(url).content
+def format_results(column_mapper: dict) -> Callable:
+    def formatter(df_results: pd.DataFrame) -> pd.DataFrame:
+        return select_rename(column_mapper)(df_results) if not df_results.empty else pd.DataFrame()
+    return formatter
 
 
 def pipe(*functions):
@@ -91,81 +128,16 @@ def pipe(*functions):
     return combined_function
 
 
-def run_pipe(*everything):
-    seed = everything[0]
-    functions = everything[1:]
-    return pipe(*functions)(seed)
-
-
 def select_rename(column_mapper: dict) -> Callable:
-    return lambda df: df.loc[:, list(column_mapper)].rename(columns=column_mapper)
+    def selector(df: pd.DataFrame) -> pd.DataFrame:
+        return df.loc[:, list(column_mapper)].rename(columns=column_mapper)
+    return selector
 
 
 def clip_table(df: pd.DataFrame, width: int) -> pd.DataFrame:
     df_clipped = df.assign(**{c: s.astype('string').str[:width] for c, s in df.to_dict(orient='series').items()})
     df_string = tabulate.tabulate(df_clipped, showindex=False, headers=df_clipped.columns)
     return df_string
-
-
-def wrap_with_empty_df_return(formatter: Callable) -> Callable:
-    def new_formatter(df):
-        return df if df.empty else formatter(df)
-    return new_formatter
-
-
-def format_results_goodreads(df_results: pd.DataFrame) -> pd.DataFrame:
-    df_formatted = (df_results
-        .drop(columns='link')
-        .rename(columns={
-            "title": "Title",
-            "author": "Author",
-            "avg_rating": "Rating",
-            "num_ratings": "Num Ratings",
-        })
-    )
-    return df_formatted
-
-
-@wrap_with_empty_df_return
-def format_results_annas_archive(df_results: pd.DataFrame) -> pd.DataFrame:
-    column_mapper = {
-        'title': 'Title',
-        'author': 'Author',
-        'filetype': 'Type',
-        'filesize_mb': 'Size (MB)',
-        'language': 'Language',
-        'publisher': 'Publisher',
-    }
-    return df_results.pipe(select_rename(column_mapper))
-
-
-@wrap_with_empty_df_return
-def format_results_bibliocommons(df_results: pd.DataFrame) -> pd.DataFrame:
-    column_mapper = {
-        'title': 'Title',
-        'author': 'Author',
-        'true_format': 'Format',
-        'hold_counts': 'Holds',
-        'eresource_link': 'e-Resource',
-    }
-    return df_results.pipe(select_rename(column_mapper))
-
-
-@wrap_with_empty_df_return
-def format_results_abebooks(df_results: pd.DataFrame) -> pd.DataFrame:
-    column_mapper = {
-        'title': 'Title',
-        'author': 'Author',
-        'price_description': 'Price (CAD)',
-        'binding': 'Binding',
-        'condition': 'Condition',
-        'seller': 'Seller',
-        'edition': 'Edition',
-    }
-    return (df_results
-        .sort_values('total_price_cad')
-        .pipe(select_rename(column_mapper))
-    )
 
 
 if __name__ == '__main__':

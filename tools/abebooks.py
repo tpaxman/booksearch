@@ -208,6 +208,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
                 + ' = ' + t.total_price_cad.astype('int').astype('string')
             ),
         )
+        .sort_values('total_price_cad')
     )
 
     return df_results
