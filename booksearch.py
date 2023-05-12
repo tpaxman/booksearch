@@ -55,7 +55,7 @@ def main():
         },
         {
             "source": "library", 
-            "parser": format_results_bibliocommons, 
+            "parser": format_multiple_results_bibliocommons, 
             "url": search_urls_library
         },
         {
@@ -126,29 +126,30 @@ def format_results_annas_archive(search_url: str) -> pd.DataFrame:
 
 
 # TODO: split this back into two things
-def format_results_bibliocommons(search_urls: list) -> None:
+
+def format_results_bibliocommons(search_url: str) -> pd.DataFrame:
+    content = requests.get(search_url).content
+    df_results = biblio.parse_results(content)
+
+    if df_results.empty:
+        return df_results
+
+    column_mapper = {
+        'title': 'Title',
+        'author': 'Author',
+        'true_format': 'Format',
+        'hold_counts': 'Holds',
+        'eresource_link': 'e-Resource',
+    }
+
+    df_formatted = df_results.pipe(select_rename(column_mapper))
+    return df_formatted
+
+
+def format_multiple_results_bibliocommons(search_urls: list) -> None:
     results_tables = []
     for search_url in search_urls:
-        content = requests.get(search_url).content
-        df_results = biblio.parse_results(content)
-
-        if df_results.empty:
-            return df_results
-
-        column_mapper = {
-            'library': 'Library',
-            'title': 'Title',
-            'author': 'Author',
-            'true_format': 'Format',
-            'hold_counts': 'Holds',
-            'eresource_link': 'e-Resource',
-        }
-
-        df_formatted = (df_results
-            .assign(library = biblio.extract_library_subdomain(search_url))
-            .pipe(select_rename(column_mapper))
-        )
-
+        df_formatted = format_results_bibliocommons(search_url).assign(Library = biblio.extract_library_subdomain(search_url))
         results_tables.append(df_formatted)
     
     df_all_results = pd.concat(results_tables)
