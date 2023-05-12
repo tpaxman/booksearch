@@ -31,6 +31,7 @@ def main():
     parser.add_argument('--max_num_results', '-n', type=int)
     parser.add_argument('--sources', '-s', nargs='+', default=[])
     parser.add_argument('--width', '-w', type=int, default=30)
+    parser.add_argument('--table_format', '-f', default='psql')
     args = parser.parse_args()
 
     AUTHOR = ' '.join(args.author)
@@ -39,6 +40,7 @@ def main():
     MAX_NUM_RESULTS = args.max_num_results
     SOURCES = args.sources
     WIDTH = args.width
+    TABLE_FORMAT = args.table_format
 
     BIBLIOCOMMONS_COLUMN_MAPPER = {
         'title': 'Title',
@@ -108,7 +110,7 @@ def main():
 
             if not df.empty:
                 source = k.upper()
-                df_str = clip_table(df.head(MAX_NUM_RESULTS), WIDTH)
+                df_str = clip_table(df.head(MAX_NUM_RESULTS), WIDTH, TABLE_FORMAT)
                 printable_results.append('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
 
 
@@ -134,9 +136,9 @@ def select_rename(column_mapper: dict) -> Callable:
     return selector
 
 
-def clip_table(df: pd.DataFrame, width: int) -> pd.DataFrame:
+def clip_table(df: pd.DataFrame, width: int, tablefmt: str='simple') -> pd.DataFrame:
     df_clipped = df.assign(**{c: s.astype('string').str[:width] for c, s in df.to_dict(orient='series').items()})
-    df_string = tabulate.tabulate(df_clipped, showindex=False, headers=df_clipped.columns)
+    df_string = tabulate.tabulate(df_clipped, showindex=False, headers=df_clipped.columns, tablefmt=tablefmt)
     return df_string
 
 
