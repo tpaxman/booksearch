@@ -12,6 +12,7 @@
 # TODO: create a 'summary string' for each source e.g. 'abe: $10 (soft), $15 (hard), 56 copies. Edmonton: Bookseller ($15)' or something 
 import argparse
 import requests
+from typing import Callable
 import tabulate
 import tools.bibliocommons as biblio
 import tools.abebooks as abe
@@ -20,8 +21,7 @@ import tools.goodreads as goodreads
 import numpy as np
 import pandas as pd
 
-from forex_python.converter import CurrencyRates
-USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -68,12 +68,23 @@ def main():
     for x in sources_results_notempty:
         source = x['source'].upper()
         url = u if isinstance((u := x['url']), str) else '\n'.join(u)
-        df = stringify_table(x['df'].head(args.max_num_results))
-        print('\n' + source + '\n' + url + '\n\n' +  df + '\n')
+        df = x['df'].head(args.max_num_results)
+        df_str = clip_table(df, 30)
+        print('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
 
 
-def stringify_table(df: pd.DataFrame) -> str:
-    return tabulate.tabulate(df, showindex=False, headers=df.columns)
+def select_rename(column_mapper: dict) -> Callable:
+    return lambda df: df.loc[:, list(column_mapper)].rename(columns=column_mapper)
+
+# def select_rename(column_mapper: dict) -> Callable:
+#     def rename(df: pd.DataFrame) -> pd.DataFrame:
+#         return df.loc[list(column_mapper)].rename(columns=column_mapper)
+#     return rename
+
+def clip_table(df: pd.DataFrame, width: int) -> pd.DataFrame:
+    df_clipped = df.assign(**{c: s.astype('string').str[:width] for c, s in df.to_dict(orient='series').items()})
+    df_string = tabulate.tabulate(df_clipped, showindex=False, headers=df_clipped.columns)
+    return df_string
 
 
 def format_results_goodreads(search_url: str) -> None:
@@ -81,10 +92,6 @@ def format_results_goodreads(search_url: str) -> None:
     df_results = goodreads.parse_results(content)
     df_formatted = (df_results
         .drop(columns='link')
-        .assign(
-            title = lambda t: t['title'].str[:30],
-            author = lambda t: t['author'].str[:30],
-        )
         .rename(columns={
             "title": "Title",
             "author": "Author",
@@ -102,27 +109,18 @@ def format_results_annas_archive(search_url: str) -> pd.DataFrame:
     if df_results.empty:
         return df_results
 
-    df_formatted = (
-        df_results
-        .assign(
-            title = lambda t: t['title'].str[:30],
-            author = lambda t: t['author'].str[:30], 
-            filesize_mb = lambda t: t['filesize_mb'].astype('int'),
-            publisher = lambda t: t['publisher'].str[:50]
-        )
-        [['title', 'author', 'filetype', 'filesize_mb', 'language', 'publisher']]
-        .rename(columns={
-            'title': 'Title',
-            'author': 'Author',
-            'filetype': 'Type',
-            'filesize_mb': 'Size (MB)',
-            'language': 'Language',
-            'publisher': 'Publisher',
-        })
-    )
+    column_mapper = {
+        'title': 'Title',
+        'author': 'Author',
+        'filetype': 'Type',
+        'filesize_mb': 'Size (MB)',
+        'language': 'Language',
+        'publisher': 'Publisher',
+    }
+
+    df_formatted = select_rename(column_mapper)(df_results)
 
     return df_formatted
-
 
 
 def format_results_bibliocommons(search_urls: list) -> None:
@@ -134,22 +132,18 @@ def format_results_bibliocommons(search_urls: list) -> None:
         if df_results.empty:
             return df_results
 
-        df_formatted = (
-            df_results
-            .assign(
-                title = lambda t: t['title'].str[:30],
-                author = lambda t: t['author'].str[:15], 
-            )
+        column_mapper = {
+            'library': 'Library',
+            'title': 'Title',
+            'author': 'Author',
+            'true_format': 'Format',
+            'hold_counts': 'Holds',
+            'eresource_link': 'e-Resource',
+        }
+
+        df_formatted = (df_results
             .assign(library = biblio.extract_library_subdomain(search_url))
-            [['library', 'title', 'author', 'true_format', 'hold_counts']]
-            .rename(columns={
-                'library': 'Library',
-                'title': 'Title',
-                'author': 'Author',
-                'true_format': 'Format',
-                'hold_counts': 'Holds',
-                'eresource_link': 'e-Resource',
-            })
+            .pipe(select_rename(column_mapper))
         )
 
         results_tables.append(df_formatted)
@@ -158,62 +152,28 @@ def format_results_bibliocommons(search_urls: list) -> None:
     return df_all_results
 
 
-
-def format_results_abebooks(search_url: str) -> None:
+def format_results_abebooks(search_url: str) -> pd.DataFrame:
     content = requests.get(search_url).content
     df_results = abe.parse_results(content)
 
     if df_results.empty:
         return df_results
 
-    df_formatted = (
-        df_results
-        .convert_dtypes()
-        .fillna({
-            'price_usd': 0,
-            'shipping_cost_usd': 0
-        })
-        .assign(
-            price_cad = lambda t: t.price_usd.multiply(USD_TO_CAD_FACTOR),
-            shipping_cost_cad = lambda t: t.shipping_cost_usd.multiply(USD_TO_CAD_FACTOR),
-        )
-        .assign(
-            in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
-            # they always list them in USD but the in-store price is the same value in CAD
-            price_cad = lambda t: np.where(t.seller.str.lower().str.contains('edmonton book store'), t.price_usd, t.price_cad),
-            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0.0, t.shipping_cost_cad),
-        )
-        .assign(
-            total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
-            price_description = lambda t: (
-                t.price_cad.astype('int').astype('string')
-                + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
-                + ' = ' + t.total_price_cad.astype('int').astype('string')
-                ),
-        )
-        .assign(
-            title = lambda t: t['title'].str[:30],
-            author = lambda t: t['author'].str[:20], 
-            binding = lambda t: t['binding'].str.lower(),
-            about = lambda t: t['about'].str[:40],
-            edition = lambda t: t.edition if 'edition' in t.columns else '',
-            seller = lambda t: np.where(t.in_edmonton, '* ' + t.seller, t.seller),
-        )
+    column_mapper = {
+        'title': 'Title',
+        'author': 'Author',
+        'price_description': 'Price (CAD)',
+        'binding': 'Binding',
+        'condition': 'Condition',
+        'seller': 'Seller',
+        'edition': 'Edition',
+    }
+
+    df_formatted = (df_results
         .sort_values('total_price_cad')
-        [['title', 'author', 'price_description', 'binding', 'condition', 'seller', 'edition']]
-        .rename(columns={
-            'title': 'Title',
-            'author': 'Author',
-            'price_description': 'Price (CAD)',
-            'binding': 'Binding',
-            'condition': 'Condition',
-            'seller': 'Seller',
-            'edition': 'Edition',
-        })
+        .pipe(select_rename(column_mapper))
     )
-
     return df_formatted
-
 
 
 if __name__ == '__main__':

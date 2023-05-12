@@ -6,6 +6,9 @@ import re
 import pandas as pd
 import numpy as np
 from functools import partial
+from forex_python.converter import CurrencyRates
+
+USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 
@@ -180,9 +183,35 @@ def parse_results(content: bytes) -> pd.DataFrame:
         .convert_dtypes()
         .astype({'price_usd': 'float', 'shipping_cost_usd': 'float'})
         # TODO: add another way to get "edition" here (in case it's non-existant) by parsing 'about'
+        .convert_dtypes()
+        .fillna({
+            'price_usd': 0,
+            'shipping_cost_usd': 0
+        })
+        .assign(
+            edition = lambda t: t.edition if 'edition' in t.columns else '',
+            price_cad = lambda t: t.price_usd.multiply(USD_TO_CAD_FACTOR),
+            shipping_cost_cad = lambda t: t.shipping_cost_usd.multiply(USD_TO_CAD_FACTOR),
+        )
+        .assign(
+            in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
+            # they always list them in USD but the in-store price is the same value in CAD
+            price_cad = lambda t: np.where(t.seller.str.lower().str.contains('edmonton book store'), t.price_usd, t.price_cad),
+            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0.0, t.shipping_cost_cad),
+            seller = lambda t: np.where(t.in_edmonton, '* ' + t.seller, t.seller),
+        )
+        .assign(
+            total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
+            price_description = lambda t: (
+                t.price_cad.astype('int').astype('string')
+                + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
+                + ' = ' + t.total_price_cad.astype('int').astype('string')
+            ),
+        )
     )
 
     return df_results
+
 
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
