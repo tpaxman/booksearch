@@ -1,3 +1,4 @@
+# TODO: allow simple keyword search
 # TODO: print url out with each source as well
 # TODO: add option to open all results in selenium?
 # TODO: add modes: general, summary, batch, values, availability, etc.
@@ -98,6 +99,7 @@ def main():
         },
     }
 
+
     printable_results = []
     for k, v in SOURCES_DATA.items():
 
@@ -111,7 +113,7 @@ def main():
             if not df.empty:
                 source = k.upper()
                 df_str = clip_table(df.head(MAX_NUM_RESULTS), WIDTH, TABLE_FORMAT)
-                printable_results.append('\n' + source + '\n' + url + '\n\n' +  df_str + '\n')
+                printable_results.append('\n' + source + '\n\n' + url + '\n\n' +  df_str + '\n')
 
 
     for x in printable_results:

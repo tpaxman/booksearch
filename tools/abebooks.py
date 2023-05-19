@@ -8,7 +8,9 @@ import numpy as np
 from functools import partial
 from forex_python.converter import CurrencyRates
 
-USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
+# TODO: fix this RatesNotAvailableError: Currency Rates Source Not Ready
+# USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
+USD_TO_CAD_FACTOR = 1.35
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 
