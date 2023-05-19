@@ -1,5 +1,6 @@
 import argparse
 import requests
+from typing import Callable
 import pandas as pd
 import numpy as np
 import tools.abebooks as abe
@@ -10,6 +11,31 @@ import time
 
 VALID_SOURCES = ['abebooks', 'annas_archive', 'epl', 'calgary', 'goodreads']
 
+FUNCTIONS = {
+    'abebooks': {
+        'composer': abe.compose_search_url, 
+        'parser': abe.parse_results
+    },
+    'epl': {
+        'composer': bib.generate_compose_search_url_function('epl'),
+        'parser': bib.parse_results
+    },
+    'calgary': {
+        'composer': bib.generate_compose_search_url_function('calgary'),
+        'parser': bib.parse_results,
+    },
+    'goodreads': {
+        'composer': good.compose_search_url,
+        'parser': good.parse_results,
+    },
+    'annas_archive': {
+        'composer': ann.compose_search_url,
+        'parser': ann.parse_results,
+    }
+}
+
+VALID_SOURCES = list(FUNCTIONS)
+
 PARSERS = {
     'abebooks': abe.parse_results,
     'epl': bib.parse_results,
@@ -17,6 +43,17 @@ PARSERS = {
     'goodreads': good.parse_results,
     'annas_archive': ann.parse_results,
 }
+
+
+PARSERS = {
+    'abebooks': abe.parse_results,
+    'epl': bib.parse_results,
+    'calgary': bib.parse_results,
+    'goodreads': good.parse_results,
+    'annas_archive': ann.parse_results,
+}
+
+
 
 
 def main():
