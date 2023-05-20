@@ -54,6 +54,14 @@ PARSERS = {
 }
 
 
+def create_inputs_pairs_table(input_textfile, separator=';'):
+    with open(input_textfile, encoding='utf-8') as f:
+        raw_inputs = f.read()
+
+    input_pairs = [x.strip().split(separator) for x in raw_inputs.strip().split('\n')]
+    inputs = pd.DataFrame(input_pairs, columns=['author', 'title']).fillna('')
+    return inputs
+
 
 
 def main():
@@ -70,11 +78,7 @@ def main():
 
     assert source in VALID_SOURCES, f"{source} is not a valid source"
 
-    with open(input_textfile, encoding='utf-8') as f:
-        raw_inputs = f.read()
-
-    input_pairs = [x.strip().split(separator) for x in raw_inputs.strip().split('\n')]
-    inputs = pd.DataFrame(input_pairs, columns=['author', 'title']).fillna('')
+    inputs = create_inputs_pairs_table(input_textfile, separator)
 
     parser = PARSERS.get(source)
 
