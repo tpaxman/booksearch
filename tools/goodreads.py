@@ -5,10 +5,10 @@ import pandas as pd
 from typing import Callable
 import re
 from tools.webscraping import get_text
+from functools import reduce
 
 # TODO: figure out why goodreads only returns 5 things
 # TODO: sort by most ratings maybe? Getting some weird values otherwise
-
 
 COLUMN_MAPPINGS = {
     'Book Id': 'goodreads_id',
@@ -29,14 +29,13 @@ COLUMN_MAPPINGS = {
     'Date Added': 'date_added',
     'Bookshelves': 'bookshelves',
     'Bookshelves with positions': 'bookshelves_ordered',
-    'Exclusive Shelf': 'bookshelf_exclusive',
+    'Exclusive Shelf': 'exclusive_bookshelf',
     'My Review': 'my_review',
     'Spoiler': 'spoiler',
     'Private Notes': 'private_notes',
     'Read Count': 'read_count',
     'Owned Copies': 'owned_copies',
 }
-
 
 USED_COLUMNS = [
     'goodreads_id',
@@ -47,9 +46,10 @@ USED_COLUMNS = [
     'publisher',
     'publication_year_original',
     'bookshelves', 
-    'bookshelf_exclusive',
+    'exclusive_bookshelf',
 ]
 
+pipe = lambda *functions: lambda seed: reduce(lambda x,f: f(x), functions, seed)
 
 def compose_search_url(query: str) -> str:
     quoted_search_string = quote_plus(query)
@@ -92,6 +92,9 @@ def parse_results(content: bytes) -> pd.DataFrame:
     )
 
     # TODO: figure out how to implement this re-filtering stuff
+    # def string_contains_all_words(string: str, words: str) -> bool:
+    #     words_clean = re.findall(r'\w+', words)
+    #     return all(w.strip().lower() in string.lower() for w in words_clean)
     # data = (data
     #     .loc[lambda t: t.title.apply(lambda x: string_contains_all_words(x, title))]
     #     .loc[lambda t: t.author.apply(lambda x: string_contains_all_words(x, author))]
@@ -100,58 +103,59 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return data
 
 
-def parse_library_export(goodreads_library: pd.DataFrame) -> pd.DataFrame:
-    return (goodreads_library
+def clean_library_export(goodreads_library: pd.DataFrame) -> pd.DataFrame:
+    """
+    clean the Goodreads Library Export data file
+    """
+
+    # functions for cleaning title
+    remove_junior_senior = lambda x: re.sub(r'(Jr|Sr)\., (.*?)\s(\w+)$', r'\3, \2', x)
+    remove_other_names = lambda x: re.sub(r',.*', '', x)
+    extract_author_surname = pipe(remove_junior_senior, remove_other_names)
+    remove_author_punctuation = lambda author: author.replace('.', '').replace(',', '')
+
+    # functions for cleaning author name
+    remove_series_info = lambda x: re.sub(r'\s+\(.*?\)', '', x)
+    remove_subtitle = lambda x: re.sub(': .*', '', x)
+    extract_plain_title = pipe(remove_series_info, remove_subtitle)
+
+    goodreads_library_clean = (
+        goodreads_library
         .rename(columns=COLUMN_MAPPINGS)
         .loc[:, list(USED_COLUMNS)]
         .rename(columns={'title': 'title_raw'})
         .assign(
             title = lambda t: t['title_raw'].apply(extract_plain_title),
             author_surname = lambda t: t['author_lf'].apply(extract_author_surname),
-            author_unpunctuated = lambda t: t['author_lf'].apply(remove_punctuation),
+            author_unpunctuated = lambda t: t['author_lf'].apply(remove_author_punctuation)
         )
     )
-
-def get_shelf_dummies(goodreads_library: pd.DataFrame) -> pd.DataFrame:
-    return (goodreads_library
-        .set_index('Book Id')
-        .melt(
-            value_vars=['Bookshelves', 'Exclusive Shelf'], 
-            value_name='bookshelf', 
-            ignore_index=False
-        )
-        ['bookshelf']
-        .dropna()
-        .str.split(r'\s*,\s*', regex=True)
-        .explode()
-        .reset_index()
-        .drop_duplicates()
-        .set_index('Book Id')['bookshelf']
-        .pipe(pd.get_dummies)
-        .astype('bool')
-        .reset_index()
-        )
+    return goodreads_library_clean
 
 
-def remove_punctuation(title: str) -> str:
-    return title.replace('.', '').replace(',', '')
+def get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_names: bool=False) -> pd.DataFrame:
+    shelf_dummies = (
+        goodreads_library_clean
+            .set_index('goodreads_id')
+            .melt(
+                value_vars=['bookshelves', 'exclusive_bookshelf'],
+                value_name='bookshelf',
+                ignore_index=False
+            )
+            ['bookshelf']
+            .dropna()
+            .str.split(r'\s*,\s*', regex=True)
+            .explode()
+            .reset_index()
+            .drop_duplicates()
+            .assign(dummy=1)
+            .set_index(['goodreads_id', 'bookshelf'])['dummy']
+            .unstack()
+            .fillna(0)
+            .astype('bool')
+            .reset_index()
+    )
+    if normalize_shelf_names:
+        shelf_dummies = shelf_dummies.rename(columns=lambda x: x.replace('-', '_'))
 
-
-def string_contains_all_words(string: str, words: str) -> bool:
-    words_clean = re.findall(r'\w+', words)
-    return all(w.strip().lower() in string.lower() for w in words_clean)
-
-
-
-def extract_author_surname(goodreads_author_lf: str) -> str:
-    remove_junior_senior = lambda x: re.sub(r'(Jr|Sr)\., (.*?)\s(\w+)$', r'\3, \2', x)
-    remove_other_names = lambda x: re.sub(r',.*', '', x)
-    return remove_other_names(remove_junior_senior(goodreads_author_lf))
-
-
-def extract_plain_title(goodreads_title: str) -> str:
-    remove_series_info = lambda x: re.sub(r'\s+\(.*?\)', '', x)
-    remove_subtitle = lambda x: re.sub(': .*', '', x)
-    return remove_subtitle(remove_series_info(goodreads_title))
-
-
+    return shelf_dummies
