@@ -1,3 +1,6 @@
+import requests
+import time
+import argparse
 from functools import reduce, partial
 from typing import Callable, Literal, get_args
 import pandas as pd
@@ -5,8 +8,9 @@ import tools.abebooks as abebooks
 import tools.annas_archive as annas_archive
 import tools.bibliocommons as bibliocommons
 import tools.goodreads as goodreads
-# import tools.google_books as google
 
+# TODO: add Google Books, Kobo, Amazon, Indigo
+# TODO: implement search arguments other than title and author
 
 SOURCES = Literal[
     'abebooks', 
@@ -14,7 +18,6 @@ SOURCES = Literal[
     'calgary',
     'epl',
     'goodreads',
-    # 'google_books'
 ]
 
 
@@ -23,26 +26,41 @@ def main():
     parser.add_argument('source')
     parser.add_argument('input_csv')
     parser.add_argument('output_csv')
-
+    parser.add_argument('--title_colname', '-t', default='title', help='title column name in input_csv')
+    parser.add_argument('--author_colname', '-a', default='author', help='author column name in input_csv')
+    parser.add_argument('--sleep_time', '-s', default=1, type=int, help='time to sleep between requests (in seconds)')
+    parser.add_argument('--num_rows', '-n', type=int, default=None, help='number of rows to search in the input_csv')
     args = parser.parse_args()
+
     source = args.source
     input_csv = args.input_csv
     output_csv = args.output_csv
+    title_colname = args.title_colname
+    author_colname = args.author_colname
+    sleep_time = args.sleep_time
+    num_rows = args.num_rows
 
     assert source in get_args(SOURCES), f"{source} is not a valid source"
     df_inputs = pd.read_csv(input_csv).fillna('')
 
     results = []
-    for author, title in df_inputs[['author', 'title']].values:
-        time.sleep(1)
-        result_set = parse_results(source=source, author=author, title=title)
-        results.append(result_set)
+    rows = df_inputs if not num_rows else df_inputs.head(num_rows)
+    for author, title in rows[[author_colname, title_colname]].values:
+        time.sleep(sleep_time)
+        result_set = search(source=source, author=author, title=title)
+        if not result_set.empty:
+            print(result_set)
+            results.append(result_set)
+        
 
     df_results = pd.concat(results)
     df_results.to_csv(output_csv, index=False)
 
 
 def compose_search_url(source: SOURCES, title: str=None, author: str=None, keywords: str=None, language: str=None, publisher: str=None) -> str:
+    """
+    Compose search URL for a source website
+    """
     # TODO: ensure language is consistent across functions
     return {
         'abebooks': abebooks.compose_search_url(title=title, author=author, keywords=keywords, publisher=publisher),
@@ -50,7 +68,6 @@ def compose_search_url(source: SOURCES, title: str=None, author: str=None, keywo
         'calgary': bibliocommons.generate_compose_search_url_function('calgary')(title=title, author=author, publisher=publisher),
         'epl': bibliocommons.generate_compose_search_url_function('epl')(title=title, author=author, publisher=publisher, isolanguage=language),
         'goodreads': goodreads.compose_search_url(query = ' '.join(filter(bool, (title, author, keywords)))),
-        # 'google_books': google.compose_search_url(q= ' '.join(filter(bool, (title, author, keywords))), langRestrict=language),
     }.get(source)
 
 
@@ -61,7 +78,6 @@ def parse_results(source: SOURCES, content: bytes) -> pd.DataFrame:
         'epl': bibliocommons.parse_results,
         'calgary': bibliocommons.parse_results,
         'goodreads': goodreads.parse_results,
-        # 'google_books': google.parse_results,
     }.get(source)(content)
 
 
@@ -78,44 +94,9 @@ if __name__ == '__main__':
     main()
 
 
-# def _generate_compose_function(source: SOURCES) -> Callable:
-#     def compose_search_url(title: str=None, author: str=None, keywords: str=None, language: str=None, publisher: str=None):
-#         # TODO: ensure language is consistent across functions
-#         return {
-#             'abebooks': abebooks.compose_search_url(title=title, author=author, keywords=keywords, publisher=publisher),
-#             'annas_archive': annas_archive.compose_search_url(query=' '.join(filter(bool, (title, author, keywords))), language=language),
-#             'calgary': bibliocommons.generate_compose_search_url_function('calgary')(title=title, author=author, publisher=publisher),
-#             'epl': bibliocommons.generate_compose_search_url_function('epl')(title=title, author=author, publisher=publisher, isolanguage=language),
-#             'goodreads': goodreads.compose_search_url(query = ' '.join(filter(bool, (title, author, keywords)))),
-#             # 'google_books': google.compose_search_url(q= ' '.join(filter(bool, (title, author, keywords))), langRestrict=language),
-#         }.get(source)
-#     return compose_search_url
-
-# def _generate_parse_function(source: SOURCES) -> Callable:
-#     def parse_results(content: bytes) -> pd.DataFrame:
-#         return {
-#             'abebooks': abebooks.parse_results,
-#             'annas_archive': annas_archive.parse_results,
-#             'calgary': bibliocommons.parse_results,
-#             'epl': bibliocommons.parse_results,
-#             'goodreads': goodreads.parse_results,
-#             # 'google_books': google.parse_results,
-#         }.get(source)
-#     return parse_results
-
-
-
-# functions = {x: {'composer': _generate_compose_function(x), 'parser': _generate_parse_function(x)} for x in get_args(SOURCES)}
-# _pipe = lambda *functions: lambda seed: reduce(lambda x,f: f(x), functions, seed)
-# _pipe_kwargs = lambda *functions: lambda **kwargs: reduce(lambda x,f: f(x), functions, **kwargs)
-# 
-# _generate_tabulator = lambda source: _pipe_kwargs(
-#     _generate_compose_function(source),
-#     lambda url: requests.get(url).content,
-#     _generate_parse_function(source)
-# )
-
 """
+POSSIBLE SEARCH TERMS:
+
 # abebooks
     title: str=None,
     author: str=None,
@@ -154,22 +135,21 @@ if __name__ == '__main__':
     query: str
 
 # bibliocommons
-title: str=None,
-author: str=None,
-anywhere: str=None,
-publisher: str=None,
-formatcode: str='BK OR EBOOK OR AB',
-isolanguage: str=None,
-
+    title: str=None,
+    author: str=None,
+    anywhere: str=None,
+    publisher: str=None,
+    formatcode: str='BK OR EBOOK OR AB',
+    isolanguage: str=None,
 
 # google_books
-# form_search_url
-q: str,
-maxResults: int=40,
-langRestrict: str=None,
-orderBy: Literal["relevance", "newest"]=None,
-printType: Literal["all", "books", "magazines"]=None,
-projection: Literal["full", "lite"]=None,
-startIndex: int=None,
-volumeId: str=None,
+    q: str,
+    maxResults: int=40,
+    langRestrict: str=None,
+    orderBy: Literal["relevance", "newest"]=None,
+    printType: Literal["all", "books", "magazines"]=None,
+    projection: Literal["full", "lite"]=None,
+    startIndex: int=None,
+    volumeId: str=None,
+
 """
