@@ -7,6 +7,7 @@ import tools.bibliocommons as bibliocommons
 import tools.goodreads as goodreads
 # import tools.google_books as google
 
+
 SOURCES = Literal[
     'abebooks', 
     'annas_archive',
@@ -15,6 +16,30 @@ SOURCES = Literal[
     'goodreads',
     # 'google_books'
 ]
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('source')
+    parser.add_argument('input_csv')
+    parser.add_argument('output_csv')
+
+    args = parser.parse_args()
+    source = args.source
+    input_csv = args.input_csv
+    output_csv = args.output_csv
+
+    assert source in get_args(SOURCES), f"{source} is not a valid source"
+    df_inputs = pd.read_csv(input_csv).fillna('')
+
+    results = []
+    for author, title in df_inputs[['author', 'title']].values:
+        time.sleep(1)
+        result_set = parse_results(source=source, author=author, title=title)
+        results.append(result_set)
+
+    df_results = pd.concat(results)
+    df_results.to_csv(output_csv, index=False)
 
 
 def compose_search_url(source: SOURCES, title: str=None, author: str=None, keywords: str=None, language: str=None, publisher: str=None) -> str:
@@ -33,8 +58,8 @@ def parse_results(source: SOURCES, content: bytes) -> pd.DataFrame:
     return {
         'abebooks': abebooks.parse_results,
         'annas_archive': annas_archive.parse_results,
-        'calgary': bibliocommons.parse_results,
         'epl': bibliocommons.parse_results,
+        'calgary': bibliocommons.parse_results,
         'goodreads': goodreads.parse_results,
         # 'google_books': google.parse_results,
     }.get(source)(content)
@@ -47,6 +72,10 @@ def search(source: SOURCES, **kwargs) -> pd.DataFrame:
     content = requests.get(url).content
     results = parse(content=content)
     return results
+
+
+if __name__ == '__main__':
+    main()
 
 
 # def _generate_compose_function(source: SOURCES) -> Callable:
