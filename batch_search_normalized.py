@@ -20,6 +20,14 @@ SOURCES = Literal[
     'goodreads',
 ]
 
+DISPLAY_FORMATTERS = {
+    'abebooks': lambda df: df[['author', 'title', 'price_description', 'seller']],
+    'annas_archive': lambda df: df.fillna('').query('filetype == "epub" or filetype == "pdf"').sort_values('filetype')[['author', 'title', 'filetype', 'filesize_mb']],
+    'calgary': lambda df: df[['author', 'title', 'true_format', 'hold_counts']],
+    'epl': lambda df: df[['author', 'title', 'true_format', 'hold_counts']],
+    'goodreads': lambda df: df[['author', 'title', 'avg_rating', 'num_ratings']],
+}
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -43,13 +51,21 @@ def main():
     assert source in get_args(SOURCES), f"{source} is not a valid source"
     df_inputs = pd.read_csv(input_csv).fillna('')
 
+    formatter = DISPLAY_FORMATTERS.get(source)
+
     results = []
     rows = df_inputs if not num_rows else df_inputs.head(num_rows)
     for author, title in rows[[author_colname, title_colname]].values:
         time.sleep(sleep_time)
-        result_set = search(source=source, author=author, title=title)
+        result_set = search(source=source, author=author, title=title).assign(title_search=title, author_search=author)
+        print('')
+        print(author, title)
         if not result_set.empty:
-            print(result_set)
+            try:
+                df_formatted = formatter(result_set.head(3))
+                print(df_formatted)
+            except:
+                pass
             results.append(result_set)
         
 
