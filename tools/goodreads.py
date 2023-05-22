@@ -103,7 +103,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return data
 
 
-def clean_library_export(goodreads_library: pd.DataFrame) -> pd.DataFrame:
+def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
     """
     clean the Goodreads Library Export data file
     """
@@ -130,7 +130,12 @@ def clean_library_export(goodreads_library: pd.DataFrame) -> pd.DataFrame:
             author_unpunctuated = lambda t: t['author_lf'].apply(remove_author_punctuation)
         )
     )
-    return goodreads_library_clean
+
+    if expand_shelves:
+        shelf_dummies = get_shelf_dummies(goodreads_library_clean)
+        return goodreads_library_clean.merge(shelf_dummies, how='left', on='goodreads_id')
+    else:
+        return goodreads_library_clean
 
 
 def get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_names: bool=False) -> pd.DataFrame:
@@ -159,3 +164,14 @@ def get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_nam
         shelf_dummies = shelf_dummies.rename(columns=lambda x: x.replace('-', '_'))
 
     return shelf_dummies
+
+
+def get_owned_books(goodreads_library_clean: pd.DataFrame) -> pd.DataFrame:
+    return (
+        goodreads_library_clean
+        .pipe(lambda t: t.merge(t.pipe(get_shelf_dummies), on='goodreads_id'))
+        .rename(columns={'author_surname': 'author_search', 'title': 'title_search'})
+        .query('own')
+        [['goodreads_id', 'author_search', 'title_search']]
+    )
+
