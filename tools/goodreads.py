@@ -108,13 +108,13 @@ def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=F
     clean the Goodreads Library Export data file
     """
 
-    # functions for cleaning title
+    # functions for cleaning author name
     remove_junior_senior = lambda x: re.sub(r'(Jr|Sr)\., (.*?)\s(\w+)$', r'\3, \2', x)
     remove_other_names = lambda x: re.sub(r',.*', '', x)
     extract_author_surname = pipe(remove_junior_senior, remove_other_names)
     remove_author_punctuation = lambda author: author.replace('.', '').replace(',', '')
 
-    # functions for cleaning author name
+    # functions for cleaning title
     remove_series_info = lambda x: re.sub(r'\s+\(.*?\)', '', x)
     remove_subtitle = lambda x: re.sub(': .*', '', x)
     extract_plain_title = pipe(remove_series_info, remove_subtitle)

@@ -34,6 +34,7 @@ def main():
     parser.add_argument('source')
     parser.add_argument('input_csv')
     parser.add_argument('output_csv')
+    parser.add_argument('--goodreads', '-g', action='store_true', help='flag to configure everything to treat the input file as a goodreads library export')
     parser.add_argument('--title_colname', '-t', default='title', help='title column name in input_csv')
     parser.add_argument('--author_colname', '-a', default='author', help='author column name in input_csv')
     parser.add_argument('--sleep_time', '-s', default=1, type=int, help='time to sleep between requests (in seconds)')
