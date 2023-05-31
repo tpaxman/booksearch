@@ -112,6 +112,24 @@ def agg_results(results: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def create_view(results: pd.DataFrame) -> pd.DataFrame:
+    if results.empty:
+        return results
+
+    return (
+        results
+        [['num_ratings', 'avg_rating', 'title', 'author']]
+        .sort_values('num_ratings', ascending=False)
+        .head(4)
+    )
+
+
+def create_description(results: pd.DataFrame) -> str:
+    if results.empty:
+        return results
+
+    return results.iloc[0].apply(lambda r: f"{r.avg_rating} ({r.num_ratings}")
+
 def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
     """
     clean the Goodreads Library Export data file

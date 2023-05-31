@@ -128,6 +128,23 @@ def agg_results(results: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def create_view(results: pd.DataFrame) -> pd.DataFrame:
+    if results.empty:
+        return results
+
+    return (
+        results
+        .reindex(['true_format', 'hold_counts', 'title', 'author'], axis=1)
+        .reset_index(drop=True)
+    )
+
+
+def create_description(results: pd.DataFrame) -> str:
+    if results.empty:
+        return results
+
+    return ', '.join(set(results['true_format']))
+
 def get_available_formats(parsed_data: pd.DataFrame) -> str:
     return (parsed_data
         .groupby('true_format')
@@ -141,5 +158,6 @@ def get_available_formats(parsed_data: pd.DataFrame) -> str:
 
 def extract_library_subdomain(search_url: str) -> str:
     return re.search(r'https://(\w+)', search_url).group(1)
+
 
 

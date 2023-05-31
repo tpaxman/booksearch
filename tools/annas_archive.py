@@ -170,5 +170,21 @@ def agg_results(results: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def create_view(results: pd.DataFrame) -> pd.DataFrame:
+    if results.empty:
+        return results
+
+    return (
+        results
+        .reindex(['filetype', 'filesize', 'language', 'title', 'author'], axis=1)
+        .loc[lambda t: t['filetype'].isin(('epub', 'pdf', 'mobi'))]
+        .groupby('filetype').first()
+        .reset_index()
+    )
 
 
+def create_description(results: pd.DataFrame) -> str:
+    if results.empty:
+        return results
+
+    return results['filetype'].drop_duplicates().pipe(', '.join)

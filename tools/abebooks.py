@@ -220,7 +220,14 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return df_results
 
 
-def agg_results(results: pd.DataFrame) -> pd.DataFrame:
+def agg_batch_results(results: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aggregate batch results
+    """
+
+    if results.empty:
+        return pd.DataFrame()
+
     return (
         results
         .groupby(['author_search', 'title_search'])
@@ -231,6 +238,47 @@ def agg_results(results: pd.DataFrame) -> pd.DataFrame:
         )
         .reset_index()
     )
+
+
+def create_view(results: pd.DataFrame) -> pd.DataFrame:
+    """
+    Create a summary view for printout
+    """
+
+    if results.empty:
+        return pd.DataFrame()
+
+    return (
+        results
+        .loc[lambda t: t.groupby(['binding', 'condition'])['total_price_cad'].idxmin()]
+        .sort_values('total_price_cad')
+        [['binding', 'condition', 'price_description', 'seller', 'title', 'author']]
+        .reset_index(drop=True)
+    )
+
+
+def create_description(results: pd.DataFrame) -> str:
+    """
+    Create a summary description for printout
+    """
+
+    num_results = results.shape[1]
+    extremities = {
+        'min': results.loc[results['total_price_cad'].idxmin()],
+        'max': results.loc[results['total_price_cad'].idxmax()],
+    }
+    range_description = '\n'.join(f'{name.upper()}: {r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
+    edmonton_description = (
+        results
+        .astype({'in_edmonton': 'bool'})
+        .query('in_edmonton')
+        .assign(seller = lambda t: t['seller'].str.replace(r'\* (.*?), Edmonton, AB, Canada', r'\1', regex=True))
+        .apply(lambda r: f'${round(r.price_cad)}: {r.seller}', axis=1)
+        .pipe('\n'.join)
+    )
+    count_description = f'{num_results} Results'
+    all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
+    return all_descriptions
 
 
 def get_condition_description(about: str) -> str:

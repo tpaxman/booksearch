@@ -130,18 +130,18 @@ def create_bibliocommons_oneliner(agg_view: pd.DataFrame) -> str:
     return ', '.join(set(agg_view['true_format']))
 
 
-@_skip_empty_tables
-def create_annas_archive_view(data: pd.DataFrame) -> pd.DataFrame:
-    return (
-        data
-        .reindex(['filetype', 'filesize', 'language', 'title', 'author'], axis=1)
-        .loc[lambda t: t['filetype'].isin(('epub', 'pdf', 'mobi'))]
-        .groupby('filetype').first()
-        .reset_index()
-    )
+# @_skip_empty_tables
+# def create_annas_archive_view(data: pd.DataFrame) -> pd.DataFrame:
+#     return (
+#         data
+#         .reindex(['filetype', 'filesize', 'language', 'title', 'author'], axis=1)
+#         .loc[lambda t: t['filetype'].isin(('epub', 'pdf', 'mobi'))]
+#         .groupby('filetype').first()
+#         .reset_index()
+#     )
 
-def create_annas_archive_oneliner(agg_view: pd.DataFrame) -> str:
-    return agg_view['filetype'].drop_duplicates().pipe(', '.join)
+# def create_annas_archive_oneliner(agg_view: pd.DataFrame) -> str:
+#     return agg_view['filetype'].drop_duplicates().pipe(', '.join)
 
 
 
