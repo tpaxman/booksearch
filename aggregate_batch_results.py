@@ -1,5 +1,9 @@
 from typing import Literal
 import pandas as pd
+from goodreads import agg_results as agg_goodreads
+from annas_archive import agg_results as agg_annas_archive
+from abebooks import agg_results as agg_abebooks
+from bibliocommons import agg_results as agg_bibliocommons
 
 SOURCES = Literal[
     'abebooks', 
@@ -9,55 +13,8 @@ SOURCES = Literal[
     'goodreads',
 ]
 
-
 # TODO: apply refilter stuff to make sure we are picking the right things
 # TODO: use idxmin instead to preserve more data
-
-def agg_abebooks(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        .groupby(['author_search', 'title_search'])
-        .agg(
-            total_price=('total_price_cad', 'min'), 
-            price=('price_cad', 'min'), 
-            n=('price_cad', 'count')
-        )
-        .reset_index()
-    )
-
-def agg_annas_archive(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        [['author_search', 'title_search', 'filetype']].value_counts()
-        .unstack()
-        .reindex(['epub', 'pdf'], axis=1)
-        .fillna(0)
-        .astype('int')
-        .reset_index()
-    )
-
-
-def agg_goodreads(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        .loc[lambda t: t.groupby(['author_search', 'title_search'])['num_ratings'].idxmax()]
-        .set_index(['author_search', 'title_search'])[['avg_rating', 'num_ratings']]
-        .reset_index()
-    )
-
-
-def agg_bibliocommons(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        [['author_search', 'title_search', 'true_format']]
-        .value_counts()
-        .unstack()
-        .reindex(['book', 'ebook', 'web-ebook', 'audiobook'], axis=1)
-        .fillna(0)
-        .astype('int')
-        .reset_index()
-    )
-
 
 AGG_FUNCTIONS = {
     'abebooks': agg_abebooks,

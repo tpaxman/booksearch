@@ -59,6 +59,9 @@ def compose_search_url(
     content_type: CONTENT_TYPES="book_any",
     sortby: SORT_OPTIONS=None,
 ) -> str:
+    """
+    Compose the search URL for Anna's Archive
+    """
 
     # note: sortby=None defaults to 'most relevant'
     root_url = "https://annas-archive.org/search?"
@@ -78,7 +81,6 @@ def compose_search_url(
 
 
 def parse_results(content: bytes) -> pd.DataFrame:
-
     results_uncommented_html = (
         content
         .decode('utf-8')
@@ -154,3 +156,19 @@ def parse_results(content: bytes) -> pd.DataFrame:
     data = pd.DataFrame(result_items_data)
 
     return data
+
+
+def agg_results(results: pd.DataFrame) -> pd.DataFrame:
+    return (
+        results
+        [['author_search', 'title_search', 'filetype']].value_counts()
+        .unstack()
+        .reindex(['epub', 'pdf'], axis=1)
+        .fillna(0)
+        .astype('int')
+        .reset_index()
+    )
+
+
+
+

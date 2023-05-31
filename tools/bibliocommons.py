@@ -1,48 +1,62 @@
 from functools import partial
+from collections.abc import Iterable
 import re
-import numpy as np
-from bs4 import BeautifulSoup
 import requests
-from urllib.parse import quote_plus
-import pandas as pd
 from typing import Callable, Literal
+from urllib.parse import quote_plus
+from bs4 import BeautifulSoup
+import numpy as np
+import pandas as pd
 from tools.webscraping import refilter, get_text
 
-valid_formatcodes = Literal[
-    'BK',
-    'EBOOK',
-    'AB'
-]
-
-valid_library_subdomains = Literal[
-    'epl',
-    'calgary'
-]
-
 # TODO: calculate waiting period for books
-# TODO: make this exhaustive
-# VALID_FORMATCODES = ['BK', 'AB', 'EBOOK']
+# TODO: make an exhaustive list of format code types
+# TODO: make this more flexible to allow OR
 
-def generate_compose_search_url_function(library_subdomain: valid_library_subdomains) -> Callable:
-    # TODO: add in exhaustive set of allowable inputs
-    def compose_search_url(
-        title: str=None,
-        author: str=None,
-        anywhere: str=None,
-        publisher: str=None,
-        formatcode: str='BK OR EBOOK OR AB',
-        isolanguage: str=None,
-    ) -> pd.DataFrame:
-        # TODO: make this more flexible to allow OR
-        # TODO: do away with this terrible 'locals' hack
-        kwargs = {k:v for k,v in locals().items() if k != 'library_subdomain'}
-        search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items() if v)
-        quoted_search_string = quote_plus(search_string)
+LIBRARY_SUBDOMAIN_TYPE = Literal['epl', 'calgary']
 
-        search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
-        return search_url
+FORMATCODE_TYPE = Literal['BK', 'AB', 'EBOOK']
 
-    return compose_search_url
+FORMATCODES_TYPE = Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE
+
+
+def compose_search_url(
+    library_subdomain: LIBRARY_SUBDOMAIN_TYPE,
+    title: str=None,
+    author: str=None,
+    anywhere: str=None,
+    publisher: str=None,
+    formatcodes: Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE = ('BK', 'EBOOK', 'AB'),
+    isolanguage: str=None,
+) -> pd.DataFrame:
+    """
+    Compose a search URL for a bibliocommons library search
+    """
+
+    if isinstance(formatcodes, str):
+        formatcode = formatcodes
+    else:
+        formatcode = ' OR '.join(formatcodes)
+
+    kwargs = {
+        'title': title,
+        'author': author,
+        'anywhere': anywhere,
+        'publisher': publisher,
+        'formatcode': formatcode,
+        'isolanguage': isolanguage,
+    }
+
+    search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items() if v)
+    quoted_search_string = quote_plus(search_string)
+    search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
+    return search_url
+
+
+compose_search_url_epl = partial(compose_search_url, library_subdomain='epl')
+
+compose_search_url_calgary = partial(compose_search_url, library_subdomain='calgary')
+
 
 def parse_results(results_html: bytes, title_refilter: str = None, author_refilter: str = None) -> pd.DataFrame:
     soup = BeautifulSoup(results_html, features='html.parser')
@@ -101,6 +115,19 @@ def parse_results(results_html: bytes, title_refilter: str = None, author_refilt
     return data
 
 
+def agg_results(results: pd.DataFrame) -> pd.DataFrame:
+    return (
+        results
+        [['author_search', 'title_search', 'true_format']]
+        .value_counts()
+        .unstack()
+        .reindex(['book', 'ebook', 'web-ebook', 'audiobook'], axis=1)
+        .fillna(0)
+        .astype('int')
+        .reset_index()
+    )
+
+
 def get_available_formats(parsed_data: pd.DataFrame) -> str:
     return (parsed_data
         .groupby('true_format')
@@ -110,14 +137,9 @@ def get_available_formats(parsed_data: pd.DataFrame) -> str:
         .description
         .pipe('\n'.join)
     )
-    #return data.true_format.drop_duplicates().to_list()
-
 
 
 def extract_library_subdomain(search_url: str) -> str:
     return re.search(r'https://(\w+)', search_url).group(1)
 
 
-
-compose_search_url_epl = generate_compose_search_url_function('epl')
-compose_search_url_calgary = generate_compose_search_url_function('calgary')

@@ -1,19 +1,19 @@
-from bs4 import BeautifulSoup
-from typing import Literal
-import requests
-from urllib.parse import quote, quote_plus
 import re
-import pandas as pd
-import numpy as np
+import requests
 from functools import partial
+from typing import Literal
+from urllib.parse import quote, quote_plus
+from bs4 import BeautifulSoup
 from forex_python.converter import CurrencyRates
+import numpy as np
+import pandas as pd
 
-# TODO: fix this RatesNotAvailableError: Currency Rates Source Not Ready
-# USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
-USD_TO_CAD_FACTOR = 1.35
+try:
+    USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
+except RatesNotAvailableError:
+    USD_TO_CAD_FACTOR = 1.35
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
-
 # TODO: decide if this conversion is really necessary
 
 ALHAMBRA_BOOKS_SELLER_ID = 3054340
@@ -55,7 +55,7 @@ def compose_search_url(
     not_print_on_demand: ON_OFF_TYPE='off',
     expand_descriptions: ON_OFF_TYPE='off',
     sellers: list=None,
-    ) -> str:
+) -> str:
     """
     Compose a URL to search Abebooks
     """
@@ -122,6 +122,9 @@ def compose_search_url(
     arguments_string = '&'.join(f'{k}={quote(str(v))}' for k, v in arguments.items() if v)
     search_url = root_url + arguments_string
     return search_url
+
+
+compose_search_url_edmonton = partial(compose_search_url, sellers=SELLERS.values())
 
 
 def parse_results(content: bytes) -> pd.DataFrame:
@@ -217,6 +220,19 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return df_results
 
 
+def agg_results(results: pd.DataFrame) -> pd.DataFrame:
+    return (
+        results
+        .groupby(['author_search', 'title_search'])
+        .agg(
+            total_price=('total_price_cad', 'min'), 
+            price=('price_cad', 'min'), 
+            n=('price_cad', 'count')
+        )
+        .reset_index()
+    )
+
+
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
     condition = search_result.group(1).lower().strip() if search_result else ''
@@ -260,4 +276,3 @@ def display_results(df_results: pd.DataFrame) -> None:
         print('')
 
 
-compose_search_url_edmonton = partial(compose_search_url, sellers=SELLERS.values())

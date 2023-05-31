@@ -1,9 +1,9 @@
-from bs4 import BeautifulSoup
+import re
 import requests
+from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 import pandas as pd
 from typing import Callable
-import re
 from tools.webscraping import get_text
 from functools import reduce
 
@@ -103,6 +103,15 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return data
 
 
+def agg_results(results: pd.DataFrame) -> pd.DataFrame:
+    return (
+        results
+        .loc[lambda t: t.groupby(['author_search', 'title_search'])['num_ratings'].idxmax()]
+        .set_index(['author_search', 'title_search'])[['avg_rating', 'num_ratings']]
+        .reset_index()
+    )
+
+
 def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
     """
     clean the Goodreads Library Export data file
@@ -174,4 +183,5 @@ def get_owned_books(goodreads_library_clean: pd.DataFrame) -> pd.DataFrame:
         .query('own')
         [['goodreads_id', 'author_search', 'title_search']]
     )
+
 
