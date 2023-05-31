@@ -16,31 +16,35 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--author', '-a', default='', nargs='+')
     parser.add_argument('--title', '-t', default='', nargs='+')
+    parser.add_argument('--oneline', '-x', action='store_true')
     args = parser.parse_args()
     title = ' '.join(args.title)
     author = ' '.join(args.author)
-    main_process(author, title)
+    oneline = args.oneline
+    main_process(author, title, oneline)
     
-def main_process(author, title):
+def main_process(author, title, oneline):
     
     raw_data = {source: _download_data(source=source, title=title, author=author)
                 for source in ['abebooks', 'epl', 'annas_archive', 'goodreads', 'calgary']}
 
-    views = {
-        'abebooks': create_abebooks_view(raw_data.get('abebooks')),
-        'abebooks_local': create_abebooks_local_view(raw_data.get('abebooks')),
-        'annas_archive': create_annas_archive_view(raw_data['annas_archive']),
-        'epl': create_bibliocommons_view(raw_data['epl']),
-        'calgary': create_bibliocommons_view(raw_data['calgary']),
-        'goodreads': create_goodreads_view(raw_data['goodreads']),
-    }
+    if not oneline:
+        views = {
+            'abebooks': create_abebooks_view(raw_data.get('abebooks')),
+            'abebooks_local': create_abebooks_local_view(raw_data.get('abebooks')),
+            'annas_archive': create_annas_archive_view(raw_data['annas_archive']),
+            'epl': create_bibliocommons_view(raw_data['epl']),
+            'calgary': create_bibliocommons_view(raw_data['calgary']),
+            'goodreads': create_goodreads_view(raw_data['goodreads']),
+        }
 
 
-    for k, v in views.items():
-        if not v.empty:
-            print(k.upper() + ':')
-            print(_tabulate(v))
-            print('')
+        for k, v in views.items():
+            if not v.empty:
+                print(k.upper() + ':')
+                print(_tabulate(v))
+                print('')
+
 
 
     # TODO: make option to compress everything to one line only
@@ -82,27 +86,20 @@ def create_abebooks_view(data: pd.DataFrame) -> pd.DataFrame:
         .reset_index(drop=True)
     )
 
+def create_abebooks_oneliner(agg_view: pd.DataFrame) -> str:
+    describe_row = lambda r: f"{r.price_description} ({r.binding}, {r.condition})"
+    with_descrips = agg_view.assign(summary=lambda t: t.apply(describe_row, axis=1))
 
-def print_abebooks_view(data: pd.DataFrame, compress=False) -> str:
-    agg_view = create_abebooks_view(data)
-    if not compress:
-        return _tabulate(agg_view)
-    else:
-        num_results = data.shape[1]
+    min_summary = with_descrips.loc[lambda t: t.total_price_cad.idxmin(), 'summary']
+    max_summary = with_descrips.loc[lambda t: t.total_price_cad.idxmax(), 'summary']
 
-        describe_row = lambda r: f"{r.price_description} ({r.binding}, {r.condition})"
-        with_descrips = agg_view.assign(summary=lambda t: t.apply(describe_row, axis=1))
-
-        min_summary = with_descrips.loc[lambda t: t.total_price_cad.idxmin(), 'summary']
-        max_summary = with_descrips.loc[lambda t: t.total_price_cad.idxmax(), 'summary']
-
-        final_summary = f"{min_summary} / {max_summary} / num: {num_results}"
-        return final_summary
+    final_summary = f"{min_summary} / {max_summary}"
+    return final_summary
 
 
 
 @_skip_empty_tables
-def create_abebooks_local_view(data: pd.DataFrame, compress=False) -> pd.DataFrame:
+def create_abebooks_local_view(data: pd.DataFrame) -> pd.DataFrame:
     return (
         data
         .astype({'in_edmonton': 'bool'})
@@ -112,18 +109,29 @@ def create_abebooks_local_view(data: pd.DataFrame, compress=False) -> pd.DataFra
         .reset_index(drop=True)
     )
 
+def create_abebooks_local_oneliner(agg_view: pd.DataFrame) -> str:
+    return (
+        agg_view
+        .apply(lambda r: f"{round(r.price_cad)} ({r.seller})", axis=1)
+        .pipe(' / '.join)
+    )
+        
+    
 
 @_skip_empty_tables
-def create_bibliocommons_view(data: pd.DataFrame, compress=False) -> pd.DataFrame:
+def create_bibliocommons_view(data: pd.DataFrame) -> pd.DataFrame:
     return (
         data
         .reindex(['true_format', 'hold_counts', 'title', 'author'], axis=1)
         .reset_index(drop=True)
     )
 
+def create_bibliocommons_oneliner(agg_view: pd.DataFrame) -> str:
+    return ', '.join(set(agg_view['true_format']))
+
 
 @_skip_empty_tables
-def create_annas_archive_view(data: pd.DataFrame, compress=False) -> pd.DataFrame:
+def create_annas_archive_view(data: pd.DataFrame) -> pd.DataFrame:
     return (
         data
         .reindex(['filetype', 'filesize', 'language', 'title', 'author'], axis=1)
@@ -132,15 +140,23 @@ def create_annas_archive_view(data: pd.DataFrame, compress=False) -> pd.DataFram
         .reset_index()
     )
 
+def create_annas_archive_oneliner(agg_view: pd.DataFrame) -> str:
+    return agg_view['filetype'].drop_duplicates().pipe(', '.join)
+
+
 
 @_skip_empty_tables
-def create_goodreads_view(data: pd.DataFrame, compress=False) -> pd.DataFrame:
+def create_goodreads_view(data: pd.DataFrame) -> pd.DataFrame:
     return (
         data
         [['num_ratings', 'avg_rating', 'title', 'author']]
         .sort_values('num_ratings', ascending=False)
         .head(4)
     )
+
+
+def create_goodreads_oneliner(agg_view: pd.DataFrame):
+    return agg_view.iloc[0].apply(lambda r: f"{r.avg_rating} ({r.num_ratings}
 
 if __name__ == '__main__':
     main()
