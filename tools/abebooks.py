@@ -341,22 +341,39 @@ def create_description_generic(results: pd.DataFrame) -> str:
 
     results_augmented = (
         results
-        .assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f} usd - {r.binding}, {r.condition} - {r.title} - {r.seller}', axis=1))
-        .assign(in_edmonton = lambda t: t['seller'].str.lower().str.contains('edmonton'))
-        .astype({'in_edmonton': 'bool'})
+        #.assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f} usd - {r.binding}, {r.condition} - {r.title} - {r.seller}', axis=1))
+        .assign(in_edmonton = lambda t: t['seller'].str.lower().str.contains('edmonton').astype('bool'))
         .assign(seller = lambda t: t['seller'].str.replace(', Edmonton, AB, Canada', '', regex=False))
     )
+
+    g = results_augmented.groupby('binding')
+    min_results = g.first()
+    num_results = g['title'].count().rename('num_results')
+
+    summary = (
+        min_results.join(num_results)
+        .reset_index()
+        .reindex(['binding', 'num_results', 'price_usd', 'condition',  'seller', 'author', 'title',], axis=1)
+        .sort_values('price_usd')
+        .assign(
+            num_results = lambda t: t.num_results.astype('string') + ' results',
+            price_usd = lambda t: t.price_usd.apply(lambda x: f'${x:.0f} USD'),
+        )
+    )
     
-    range_description = (
+    edmonton_description = (
         results_augmented
-        .loc[lambda t: t['price_usd'].idxmin(), 'description']
+        .query('in_edmonton')
+        .reindex(['binding',  'seller', 'price_usd', 'condition', 'author', 'title',], axis=1)
+        .assign(price_usd = lambda t: t.price_usd.apply(lambda x: f'${x:.0f} USD'))
     )
 
-    edmonton_description = results_augmented.query('in_edmonton')['description']
-    edm = '\n'.join('    ' + x for x in edmonton_description) if not edmonton_description.empty else ''
-
-    all_descriptions = f'Num Results: {num_results}\nCheapest: {range_description}' + (f'\nEdmonton:\n{edm}' if edm else '')
-    return all_descriptions
+    make_table = lambda df: tabulate.tabulate(df, showindex=False)
+    indent_table = lambda i: lambda x: '\n'.join(' '*i + y for y in  x.split('\n'))
+    cheapest = 'Cheapest:\n' + indent_table(4)(make_table(summary))
+    edmonton = '\nEdmonton:\n' + indent_table(4)(make_table(edmonton_description)) if not edmonton_description.empty else ''
+    description = cheapest + edmonton
+    return description
 
 
 def get_condition_description(about: str) -> str:
