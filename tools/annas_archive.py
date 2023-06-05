@@ -205,6 +205,7 @@ def create_oneliner(results: pd.DataFrame) -> str:
     if results.empty:
         return ''
 
+    aggregates = results.groupby('filetype').agg(size_min=('filesize_mb', 'min'), num=('title', 'count')).T.to_dict()
     epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
     pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
     epub_descrip = 'epub: {num} copies ({size_min} MB)'.format(**epub_data) if epub_data else ''
