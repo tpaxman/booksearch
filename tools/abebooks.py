@@ -309,7 +309,7 @@ def create_description(results: pd.DataFrame) -> str:
 
     results_augmented = (
         results
-        .assign(description=lambda t: t.apply(f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+        .assign(description=lambda t: t.apply(lambda r: f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
     )
 
     extremities = {
@@ -341,7 +341,7 @@ def create_description_generic(results: pd.DataFrame) -> str:
 
     results_augmented = (
         results
-        .assign(description=lambda t: t.apply(f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+        .assign(description=lambda t: t.apply(lambda r: f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
     )
     extremities = {
         'min': results_augmented.loc[lambda t: t['price_usd'].idxmin(), 'description'],
