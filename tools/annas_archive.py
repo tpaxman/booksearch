@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
 from tools.webscraping import get_text
+import tabulate
 
 
 CONTENT_TYPES = Literal[
@@ -187,4 +188,14 @@ def create_description(results: pd.DataFrame) -> str:
     if results.empty:
         return '<no results>'
 
-    return results['filetype'].drop_duplicates().pipe(', '.join)
+    description_table = (
+        results
+        .assign(name = lambda t: t.author + ' - ' + t.title)
+        .reindex(['filetype', 'name', 'filesize_mb'], axis=1)
+        .groupby('filetype').first()
+        .reset_index()
+    )
+    #return results['filetype'].drop_duplicates().pipe(', '.join)
+    descrip = tabulate.tabulate(description_table, showindex=False, headers=description_table.columns)
+    return descrip
+

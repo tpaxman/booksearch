@@ -355,7 +355,7 @@ def create_description_generic(results: pd.DataFrame) -> str:
     edmonton_description = results_augmented.query('in_edmonton')['description']
     edm = '\n'.join('    ' + x for x in edmonton_description) if not edmonton_description.empty else ''
 
-    all_descriptions = f'NUM RESULTS:\n    {num_results}\nCHEAPEST:\n    {range_description}' + (f'\nEDMONTON:\n{edm}' if edm else '')
+    all_descriptions = f'Num Results:\n    {num_results}\nCheapest:\n    {range_description}' + (f'\nEdmonton:\n{edm}' if edm else '')
     return all_descriptions
 
 
