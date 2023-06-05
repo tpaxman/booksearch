@@ -148,6 +148,7 @@ def create_description(results: pd.DataFrame) -> str:
         results
         .reindex(['true_format', 'title', 'author', 'hold_counts'], axis=1)
         .groupby('true_format').first()
+        .reset_index()
     )
     string = tabulate.tabulate(description, showindex=False)
     return string
