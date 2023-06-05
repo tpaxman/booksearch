@@ -5,6 +5,7 @@ from typing import Literal
 from urllib.parse import quote, quote_plus
 from bs4 import BeautifulSoup
 from forex_python.converter import CurrencyRates
+import tabulate
 import numpy as np
 import pandas as pd
 
