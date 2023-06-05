@@ -192,10 +192,11 @@ def create_description(results: pd.DataFrame) -> str:
         results
         .assign(name = lambda t: t.author + ' - ' + t.title)
         .reindex(['filetype', 'name', 'filesize_mb'], axis=1)
+        .assign(filesize_mb = lambda t: t.filesize_mb.astype('string') + ' MB')
         .groupby('filetype').first()
         .reset_index()
     )
     #return results['filetype'].drop_duplicates().pipe(', '.join)
-    descrip = tabulate.tabulate(description_table, showindex=False, headers=description_table.columns)
+    descrip = tabulate.tabulate(description_table, showindex=False)
     return descrip
 
