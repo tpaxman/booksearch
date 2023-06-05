@@ -209,13 +209,13 @@ def create_oneliner(results: pd.DataFrame) -> str:
 
     if 'epub' in aggregates:
         epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
-        epub_descrip = 'epub x{num} ({size_min} MB)'.format(**epub_data)
+        epub_descrip = 'epub ({size_min} MB)'.format(**epub_data)
     else:
         epub_descrip = ''
     
     if 'pdf' in aggregates:
         pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
-        pdf_descrip = 'pdf x{num} ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
+        pdf_descrip = 'pdf ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
     else:
         pdf_descrip = ''
 
