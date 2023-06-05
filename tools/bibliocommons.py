@@ -6,6 +6,7 @@ from typing import Callable, Literal
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 import numpy as np
+import tabulate
 import pandas as pd
 from tools.webscraping import refilter, get_text
 
@@ -143,7 +144,13 @@ def create_description(results: pd.DataFrame) -> str:
     if results.empty:
         return '<no results>'
 
-    return ', '.join(set(results['true_format']))
+    description = (
+        results
+        .reindex(['true_format', 'title', 'author', 'hold_counts'], axis=1)
+        .groupby('true_format').first()
+    )
+    string = tabulate.tabulate(description, showindex=False)
+    return string
 
 def get_available_formats(parsed_data: pd.DataFrame) -> str:
     return (parsed_data
