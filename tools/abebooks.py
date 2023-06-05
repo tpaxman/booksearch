@@ -373,6 +373,30 @@ def create_description_generic(results: pd.DataFrame) -> str:
     description = cheapest + edmonton
     return description
 
+def create_oneliner_generic(results: pd.DataFrame) -> str:
+    if results.empty:
+        return ''
+    
+    edmonton_details = (
+        results
+        #.assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f} usd - {r.binding}, {r.condition} - {r.title} - {r.seller}', axis=1))
+        .assign(in_edmonton = lambda t: t['seller'].str.lower().str.contains('edmonton').astype('bool'))
+        .assign(seller = lambda t: t['seller'].str.replace(', Edmonton, AB, Canada', '', regex=False))
+        .assign(descrip = lambda t: t['seller'] + ' (' + t['price_usd'].astype('int').astype('string') + ' USD)')
+        .query('in_edmonton')
+        ['descrip']
+        .pipe(', '.join)
+    )
+
+    aggregates = {k: int(v) for k, v in results.price_usd.agg(num='count', min='min', max='max', avg='mean').items()}
+    agg_summary = '{num} results / {min}-{max} USD ({avg} USD average)'.format(**aggregates)
+    summary = agg_summary + (' / ' + edmonton_details if edmonton_details else '')
+    return summary
+
+
+
+
+
 
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)

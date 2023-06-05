@@ -153,6 +153,13 @@ def create_description(results: pd.DataFrame) -> str:
     string = tabulate.tabulate(description, showindex=False)
     return string
 
+
+def create_oneliner(results: pd.DataFrame) -> str:
+    if results.empty:
+        return ''
+
+    return results.true_format.drop_duplicates().pipe(', '.join)
+
 def get_available_formats(parsed_data: pd.DataFrame) -> str:
     return (parsed_data
         .groupby('true_format')

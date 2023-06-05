@@ -200,3 +200,17 @@ def create_description(results: pd.DataFrame) -> str:
     descrip = tabulate.tabulate(description_table, showindex=False)
     return descrip
 
+
+def create_oneliner(results: pd.DataFrame) -> str:
+    if results.empty:
+        return ''
+
+    epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
+    pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
+    epub_descrip = 'epub: {num} copies ({size_min} MB)'.format(**epub_data) if epub_data else ''
+    pdf_descrip = 'pdf: {num} copies ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
+    other_formats = 'Others: ' + ', '.join(x for x in aggregates.keys() if x not in ('epub', 'pdf'))
+    description = ' / '.join(x for x in (epub_descrip, pdf_descrip, other_formats) if x)
+    return description
+
+
