@@ -306,9 +306,15 @@ def create_description(results: pd.DataFrame) -> str:
         return '<no results>'
 
     num_results = results.shape[1]
+
+    results_augmented = (
+        results
+        .assign(description=lambda t: t.apply(f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+    )
+
     extremities = {
-        'min': results.loc[results['total_price_cad'].idxmin()],
-        'max': results.loc[results['total_price_cad'].idxmax()],
+        'min': results_augmented.loc[lambda t: t['total_price_cad'].idxmin()],
+        'max': results_augmented.loc[results['total_price_cad'].idxmax()],
     }
     range_description = '\n'.join(f'{name.upper()}: {r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
     edmonton_description = (
@@ -323,6 +329,7 @@ def create_description(results: pd.DataFrame) -> str:
     all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
     return all_descriptions
 
+
 def create_description_generic(results: pd.DataFrame) -> str:
     """
     Create a summary description for printout - for non-canadian use
@@ -331,9 +338,14 @@ def create_description_generic(results: pd.DataFrame) -> str:
         return '<no results>'
 
     num_results = results.shape[1]
+
+    results_augmented = (
+        results
+        .assign(description=lambda t: t.apply(f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+    )
     extremities = {
-        'min': results.loc[results['price_usd'].idxmin()],
-        'max': results.loc[results['price_usd'].idxmax()],
+        'min': results_augmented.loc[lambda t: t['price_usd'].idxmin(), 'description'],
+        'max': results_augmented.loc[lambda t: t['price_usd'].idxmax(), 'description'],
     }
     range_description = '\n'.join(f'{name.upper()}: {r.price_usd}USD ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
 

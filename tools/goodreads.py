@@ -128,7 +128,7 @@ def create_description(results: pd.DataFrame) -> str:
     if results.empty:
         return '<no results>'
 
-    return results.iloc[0].pipe(lambda r: f"{r.avg_rating} ({r.num_ratings}")
+    return results.iloc[0].pipe(lambda r: f"Avg: {r.avg_rating} ({r.num_ratings} Ratings) - {r.title}, {r.author}")
 
 def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
     """
