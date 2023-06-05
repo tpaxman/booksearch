@@ -126,7 +126,7 @@ def create_view(results: pd.DataFrame) -> pd.DataFrame:
 
 def create_description(results: pd.DataFrame) -> str:
     if results.empty:
-        return results
+        return '<no results>'
 
     return results.iloc[0].apply(lambda r: f"{r.avg_rating} ({r.num_ratings}")
 

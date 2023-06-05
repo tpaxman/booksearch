@@ -302,6 +302,8 @@ def create_description(results: pd.DataFrame) -> str:
     """
     Create a summary description for printout
     """
+    if results.empty:
+        return '<no results>'
 
     num_results = results.shape[1]
     extremities = {
@@ -325,6 +327,8 @@ def create_description_generic(results: pd.DataFrame) -> str:
     """
     Create a summary description for printout - for non-canadian use
     """
+    if results.empty:
+        return '<no results>'
 
     num_results = results.shape[1]
     extremities = {

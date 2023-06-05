@@ -141,7 +141,7 @@ def create_view(results: pd.DataFrame) -> pd.DataFrame:
 
 def create_description(results: pd.DataFrame) -> str:
     if results.empty:
-        return results
+        return '<no results>'
 
     return ', '.join(set(results['true_format']))
 

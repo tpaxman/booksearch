@@ -185,6 +185,6 @@ def create_view(results: pd.DataFrame) -> pd.DataFrame:
 
 def create_description(results: pd.DataFrame) -> str:
     if results.empty:
-        return results
+        return '<no results>'
 
     return results['filetype'].drop_duplicates().pipe(', '.join)
