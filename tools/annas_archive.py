@@ -206,12 +206,23 @@ def create_oneliner(results: pd.DataFrame) -> str:
         return ''
 
     aggregates = results.groupby('filetype').agg(size_min=('filesize_mb', 'min'), num=('title', 'count')).T.to_dict()
-    epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
-    pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
-    epub_descrip = 'epub: {num} copies ({size_min} MB)'.format(**epub_data) if epub_data else ''
-    pdf_descrip = 'pdf: {num} copies ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
-    other_formats = 'Others: ' + ', '.join(x for x in aggregates.keys() if x not in ('epub', 'pdf'))
-    description = ' / '.join(x for x in (epub_descrip, pdf_descrip, other_formats) if x)
+
+    if 'epub' in aggregates:
+        epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
+        epub_descrip = 'epub: {num} copies ({size_min} MB)'.format(**epub_data)
+    else:
+        epub_descrip = ''
+    
+    if 'pdf' in aggregates:
+        pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
+        pdf_descrip = 'pdf: {num} copies ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
+    else:
+        pdf_descrip = ''
+
+    others = [x for x in aggregates.keys() if x not in ('epub', 'pdf')]
+    others_descrip = 'Others: ' + ', '.join(others) if others else ''
+
+    description = ' / '.join(x for x in (epub_descrip, pdf_descrip, others_descrip) if x)
     return description
 
 
