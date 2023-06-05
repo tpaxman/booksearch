@@ -338,8 +338,6 @@ def create_description_generic(results: pd.DataFrame) -> str:
     if results.empty:
         return '<no results>'
 
-    num_results = results.shape[1]
-
     results_augmented = (
         results
         #.assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f} usd - {r.binding}, {r.condition} - {r.title} - {r.seller}', axis=1))
@@ -365,14 +363,13 @@ def create_description_generic(results: pd.DataFrame) -> str:
     edmonton_description = (
         results_augmented
         .query('in_edmonton')
-        .reindex(['binding',  'seller', 'price_usd', 'condition', 'author', 'title',], axis=1)
+        .reindex(['seller', 'binding', 'price_usd', 'condition', 'author', 'title',], axis=1)
         .assign(price_usd = lambda t: t.price_usd.apply(lambda x: f'${x:.0f} USD'))
     )
 
     make_table = lambda df: tabulate.tabulate(df, showindex=False)
-    indent_table = lambda i: lambda x: '\n'.join(' '*i + y for y in  x.split('\n'))
-    cheapest = 'Cheapest:\n' + indent_table(4)(make_table(summary))
-    edmonton = '\nEdmonton:\n' + indent_table(4)(make_table(edmonton_description)) if not edmonton_description.empty else ''
+    cheapest = 'Cheapest:\n' + make_table(summary)
+    edmonton = '\nEdmonton:\n' + make_table(edmonton_description) if not edmonton_description.empty else ''
     description = cheapest + edmonton
     return description
 
