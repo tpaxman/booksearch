@@ -347,7 +347,7 @@ def create_description_generic(results: pd.DataFrame) -> str:
         'min': results_augmented.loc[lambda t: t['price_usd'].idxmin(), 'description'],
         'max': results_augmented.loc[lambda t: t['price_usd'].idxmax(), 'description'],
     }
-    range_description = '\n'.join(name + ': ' + for name, descrip in extremities.items())
+    range_description = '\n'.join(name + ': ' + descrip for name, descrip in extremities.items())
 
     edmonton_description = (
         results
