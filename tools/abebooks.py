@@ -127,7 +127,7 @@ def compose_search_url(
 compose_search_url_edmonton = partial(compose_search_url, sellers=SELLERS.values())
 
 
-def parse_results(content: bytes) -> pd.DataFrame:
+def parse_results(content: bytes, assume_canada: bool=True) -> pd.DataFrame:
     """
     Parse the response content returned by an Abebooks search request
     """
@@ -148,7 +148,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
 
         # get other pieces of data
         shipping_details = x.find('a', class_='item-shipping-dest').getText().strip()
-        assert shipping_details.strip().lower().endswith('canada')
+        assert shipping_details.strip().lower().endswith('canada') or not assume_canada, f'Shipping destination set to {shipping_details}'
 
         shipping_cost_raw = x.find('span', class_='item-shipping').getText()
         shipping_cost_raw = 'US$ 0' if 'free' in shipping_cost_raw.lower() else shipping_cost_raw
@@ -187,7 +187,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
         .assign(condition = lambda t: t.about.apply(get_condition_description))
         .convert_dtypes()
         .astype({'price_usd': 'float', 'shipping_cost_usd': 'float'})
-        # TODO: add another way to get "edition" here (in case it's non-existant) by parsing 'about'
+        # TODO: add another way to get "edition" here (in case it's non-existant) by parsing 'about' - use reindex
         .convert_dtypes()
         .fillna({
             'price_usd': 0,
@@ -195,30 +195,37 @@ def parse_results(content: bytes) -> pd.DataFrame:
         })
         .assign(
             edition = lambda t: t.edition if 'edition' in t.columns else '',
-            price_cad = lambda t: t.price_usd.multiply(USD_TO_CAD_FACTOR),
-            shipping_cost_cad = lambda t: t.shipping_cost_usd.multiply(USD_TO_CAD_FACTOR),
         )
-        .assign(
-            in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
-            # they always list them in USD but the in-store price is the same value in CAD
-            price_cad = lambda t: np.where(t.seller.str.lower().str.contains('edmonton book store'), t.price_usd, t.price_cad),
-            shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0.0, t.shipping_cost_cad),
-            seller = lambda t: np.where(t.in_edmonton, '* ' + t.seller, t.seller),
-        )
-        .assign(
-            total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
-            price_description = lambda t: (
-                t.price_cad.astype('int').astype('string')
-                + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
-                + ' = ' + t.total_price_cad.astype('int').astype('string')
-            ),
-        )
-        .convert_dtypes()
-        .sort_values('total_price_cad')
     )
 
-    return df_results
-
+    if assume_canada:
+        return (
+            df_results
+            .assign(
+                price_cad = lambda t: t.price_usd.multiply(USD_TO_CAD_FACTOR),
+                shipping_cost_cad = lambda t: t.shipping_cost_usd.multiply(USD_TO_CAD_FACTOR),
+            )
+            .assign(
+                in_edmonton = lambda t: t.seller.str.lower().str.contains('edmonton'),
+                # they always list them in USD but the in-store price is the same value in CAD
+                price_cad = lambda t: np.where(t.seller.str.lower().str.contains('edmonton book store'), t.price_usd, t.price_cad),
+                shipping_cost_cad = lambda t: np.where(t.in_edmonton, 0.0, t.shipping_cost_cad),
+                seller = lambda t: np.where(t.in_edmonton, '* ' + t.seller, t.seller),
+            )
+            .assign(
+                total_price_cad = lambda t: t.price_cad + t.shipping_cost_cad,
+                price_description = lambda t: (
+                    t.price_cad.astype('int').astype('string')
+                    + ' + ' + t.shipping_cost_cad.astype('int').astype('string')
+                    + ' = ' + t.total_price_cad.astype('int').astype('string')
+                ),
+            )
+            .convert_dtypes()
+            .sort_values('total_price_cad')
+        )
+    else:
+        return df_results
+        
 
 def agg_batch_results(results: pd.DataFrame) -> pd.DataFrame:
     """
