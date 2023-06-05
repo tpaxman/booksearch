@@ -226,6 +226,24 @@ def parse_results(content: bytes, assume_canada: bool=True) -> pd.DataFrame:
     else:
         return df_results
         
+def agg_batch_results_generic(results: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aggregate batch results - not for Canada 
+    """
+
+    if results.empty:
+        return pd.DataFrame()
+
+    return (
+        results
+        .groupby(['author_search', 'title_search'])
+        .agg(
+            price=('price_usd', 'min'), 
+            n=('price_usd', 'count')
+        )
+        .reset_index()
+    )
+
 
 def agg_batch_results(results: pd.DataFrame) -> pd.DataFrame:
     """
@@ -260,6 +278,22 @@ def create_view(results: pd.DataFrame) -> pd.DataFrame:
         .loc[lambda t: t.groupby(['binding', 'condition'])['total_price_cad'].idxmin()]
         .sort_values('total_price_cad')
         [['binding', 'condition', 'price_description', 'seller', 'title', 'author']]
+        .reset_index(drop=True)
+    )
+
+def create_view_generic(results: pd.DataFrame) -> pd.DataFrame:
+    """
+    Create a summary view for printout - for non-canada
+    """
+
+    if results.empty:
+        return pd.DataFrame()
+
+    return (
+        results
+        .loc[lambda t: t.groupby(['binding', 'condition'])['price_usd'].idxmin()]
+        .sort_values('price_usd')
+        [['binding', 'condition', 'price_usd', 'seller', 'title', 'author']]
         .reset_index(drop=True)
     )
 
