@@ -341,25 +341,21 @@ def create_description_generic(results: pd.DataFrame) -> str:
 
     results_augmented = (
         results
-        .assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f}USD ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
-    )
-    extremities = {
-        'min': results_augmented.loc[lambda t: t['price_usd'].idxmin(), 'description'],
-        'max': results_augmented.loc[lambda t: t['price_usd'].idxmax(), 'description'],
-    }
-    range_description = '\n'.join(name + ': ' + descrip for name, descrip in extremities.items())
-
-    edmonton_description = (
-        results
+        .assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f} usd - {r.binding}, {r.condition} - {r.title} - {r.seller}', axis=1))
         .assign(in_edmonton = lambda t: t['seller'].str.lower().str.contains('edmonton'))
         .astype({'in_edmonton': 'bool'})
-        .query('in_edmonton')
-        .assign(seller = lambda t: t['seller'].str.replace(r'\* (.*?), Edmonton, AB, Canada', r'\1', regex=True))
-        .apply(lambda r: f'${round(r.price_usd)}USD: {r.seller}', axis=1)
-        .pipe('\n'.join)
+        .assign(seller = lambda t: t['seller'].str.replace(', Edmonton, AB, Canada', '', regex=False))
     )
-    count_description = f'{num_results} Results'
-    all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
+    
+    range_description = (
+        results_augmented
+        .loc[lambda t: t['price_usd'].idxmin(), 'description']
+    )
+
+    edmonton_description = results_augmented.query('in_edmonton')['description']
+    edm = '\n'.join('    ' + x for x in edmonton_description) if not edmonton_description.empty else ''
+
+    all_descriptions = f'NUM RESULTS:\n    {num_results}\nCHEAPEST:\n    {range_description}' + (f'\nEDMONTON:\n{edm}' if edm else '')
     return all_descriptions
 
 
