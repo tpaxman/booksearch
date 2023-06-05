@@ -321,6 +321,31 @@ def create_description(results: pd.DataFrame) -> str:
     all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
     return all_descriptions
 
+def create_description_generic(results: pd.DataFrame) -> str:
+    """
+    Create a summary description for printout - for non-canadian use
+    """
+
+    num_results = results.shape[1]
+    extremities = {
+        'min': results.loc[results['price_usd'].idxmin()],
+        'max': results.loc[results['price_usd'].idxmax()],
+    }
+    range_description = '\n'.join(f'{name.upper()}: {r.price_usd}USD ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
+
+    edmonton_description = (
+        results
+        .assign(in_edmonton = lambda t: t['seller'].str.lower().str.contains('edmonton'))
+        .astype({'in_edmonton': 'bool'})
+        .query('in_edmonton')
+        .assign(seller = lambda t: t['seller'].str.replace(r'\* (.*?), Edmonton, AB, Canada', r'\1', regex=True))
+        .apply(lambda r: f'${round(r.price_usd)}USD: {r.seller}', axis=1)
+        .pipe('\n'.join)
+    )
+    count_description = f'{num_results} Results'
+    all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
+    return all_descriptions
+
 
 def get_condition_description(about: str) -> str:
     search_result = re.search(r'Condition:\s+(.*?)(\.|$)', about)
