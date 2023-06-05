@@ -298,36 +298,36 @@ def create_view_generic(results: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def create_description(results: pd.DataFrame) -> str:
-    """
-    Create a summary description for printout
-    """
-    if results.empty:
-        return '<no results>'
-
-    num_results = results.shape[1]
-
-    results_augmented = (
-        results
-        .assign(description=lambda t: t.apply(lambda r: f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
-    )
-
-    extremities = {
-        'min': results_augmented.loc[lambda t: t['total_price_cad'].idxmin()],
-        'max': results_augmented.loc[results['total_price_cad'].idxmax()],
-    }
-    range_description = '\n'.join(f'{name.upper()}: {r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
-    edmonton_description = (
-        results
-        .astype({'in_edmonton': 'bool'})
-        .query('in_edmonton')
-        .assign(seller = lambda t: t['seller'].str.replace(r'\* (.*?), Edmonton, AB, Canada', r'\1', regex=True))
-        .apply(lambda r: f'${round(r.price_cad)}: {r.seller}', axis=1)
-        .pipe('\n'.join)
-    )
-    count_description = f'{num_results} Results'
-    all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
-    return all_descriptions
+# def create_description(results: pd.DataFrame) -> str:
+#     """
+#     Create a summary description for printout
+#     """
+#     if results.empty:
+#         return '<no results>'
+# 
+#     num_results = results.shape[1]
+# 
+#     results_augmented = (
+#         results
+#         .assign(description=lambda t: t.apply(lambda r: f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+#     )
+# 
+#     extremities = {
+#         'min': results_augmented.loc[lambda t: t['total_price_cad'].idxmin()],
+#         'max': results_augmented.loc[results['total_price_cad'].idxmax()],
+#     }
+#     range_description = '\n'.join(f'{name.upper()}: {r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
+#     edmonton_description = (
+#         results
+#         .astype({'in_edmonton': 'bool'})
+#         .query('in_edmonton')
+#         .assign(seller = lambda t: t['seller'].str.replace(r'\* (.*?), Edmonton, AB, Canada', r'\1', regex=True))
+#         .apply(lambda r: f'${round(r.price_cad)}: {r.seller}', axis=1)
+#         .pipe('\n'.join)
+#     )
+#     count_description = f'{num_results} Results'
+#     all_descriptions = '\n'.join((count_description, range_description, edmonton_description))
+#     return all_descriptions
 
 
 def create_description_generic(results: pd.DataFrame) -> str:
@@ -341,13 +341,13 @@ def create_description_generic(results: pd.DataFrame) -> str:
 
     results_augmented = (
         results
-        .assign(description=lambda t: t.apply(lambda r: f'{r.price_description} ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
+        .assign(description=lambda t: t.apply(lambda r: f'{r.price_usd:.0f}USD ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}', axis=1))
     )
     extremities = {
         'min': results_augmented.loc[lambda t: t['price_usd'].idxmin(), 'description'],
         'max': results_augmented.loc[lambda t: t['price_usd'].idxmax(), 'description'],
     }
-    range_description = '\n'.join(f'{name.upper()}: {r.price_usd}USD ..... "{r.title}" ({r.binding}, {r.condition}) ..... {r.seller}' for name, r in extremities.items())
+    range_description = '\n'.join(name + ': ' + for name, descrip in extremities.items())
 
     edmonton_description = (
         results
