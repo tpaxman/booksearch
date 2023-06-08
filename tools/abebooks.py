@@ -11,7 +11,7 @@ import pandas as pd
 
 try:
     USD_TO_CAD_FACTOR = CurrencyRates().get_rate('USD', 'CAD')
-except RatesNotAvailableError:
+except:
     USD_TO_CAD_FACTOR = 1.35
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
