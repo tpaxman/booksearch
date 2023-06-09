@@ -393,11 +393,11 @@ def create_oneliner_generic(results: pd.DataFrame) -> str:
 
     summary = (
 
-     '{min}-{max} USD ({avg} avg)'
+     f'{min}-{max} USD ({avg} avg)'
 
     + (' / ' + edmonton_details if edmonton_details else '')
 
-    + '{num} results'.format(**aggregates)
+    + ' / {num} results'.format(**aggregates)
 
     )
     return summary
