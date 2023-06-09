@@ -390,21 +390,11 @@ def create_oneliner_generic(results: pd.DataFrame) -> str:
 
     aggregates = {k: int(v) for k, v in results.price_usd.agg(num='count', min='min', max='max', avg='mean').items()}
 
-
-    summary = (
-
-     f'{min}-{max} USD ({avg} avg)'
-
-    + (' / ' + edmonton_details if edmonton_details else '')
-
-    + ' / {num} results'.format(**aggregates)
-
-    )
+    edmonton_summary = edmonton_details if edmonton_details else ''
+    range_summary = '{min}-{avg}-{max} USD'.format(**aggregates)
+    num_summary = '{num} results'.format(**aggregates) 
+    summary = ' / '.join(filter(bool, (range_summary, edmonton_summary, num_summary)))
     return summary
-
-
-
-
 
 
 def get_condition_description(about: str) -> str:
