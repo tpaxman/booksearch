@@ -17,18 +17,14 @@ except:
 # TODO: add a 'strict' filter mode where the title inputs are quoted
 # TODO: decide if this conversion is really necessary
 
-ALHAMBRA_BOOKS_SELLER_ID = 3054340
-EDMONTON_BOOK_STORE_SELLER_ID = 19326
-THE_BOOKSELLER_SELLER_ID = 51101471
-
 SELLERS = {
-    'alhambra-books': ALHAMBRA_BOOKS_SELLER_ID,
-    'edmonton-book-store': EDMONTON_BOOK_STORE_SELLER_ID,
-    'the-bookseller': THE_BOOKSELLER_SELLER_ID,
+    'alhambra': 3054340,
+    'edm-bookstore': 19326,
+    'bookseller': 51101471,
+    'mister-seekers': 82912156
 }
 
 ON_OFF_TYPE = Literal['on', 'off']
-
 
 def compose_search_url(
     title: str=None,
@@ -391,7 +387,7 @@ def create_oneliner_generic(results: pd.DataFrame) -> str:
     aggregates = {k: int(v) for k, v in results.price_usd.agg(num='count', min='min', max='max', avg='mean').items()}
 
     edmonton_summary = edmonton_details if edmonton_details else ''
-    range_summary = '{min}-{avg}-{max} USD'.format(**aggregates)
+    range_summary = '${min}..{avg}..{max} USD'.format(**aggregates)
     num_summary = '{num} results'.format(**aggregates) 
     summary = ' / '.join(filter(bool, (range_summary, edmonton_summary, num_summary)))
     return summary
