@@ -104,6 +104,7 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
     data = (data
         .assign(true_format = lambda t: np.where(t.format_description.eq('eBook') & t.call_number.eq('Internet Access'), 'web-ebook', t.format_description.str.lower()))
         .replace({'true_format': {'downloadable audiobook': 'audiobook'}})
+        .reset_index(drop=True)
     )
 
     return data

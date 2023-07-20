@@ -89,6 +89,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
     data = (
         pd.DataFrame(result_items_data)
         .sort_values('num_ratings', ascending=False)
+        .reset_index(drop=True)
     )
 
     # TODO: figure out how to implement this re-filtering stuff
