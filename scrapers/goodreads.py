@@ -51,8 +51,8 @@ USED_COLUMNS = [
 
 pipe = lambda *functions: lambda seed: reduce(lambda x,f: f(x), functions, seed)
 
-def compose_search_url(query: str) -> str:
-    quoted_search_string = quote_plus(query)
+def compose_search_url(keywords: str) -> str:
+    quoted_search_string = quote_plus(keywords)
     search_url = f"https://www.goodreads.com/search?utf8=%E2%9C%93&q={quoted_search_string}&search_type=books&search%5Bfield%5D=on"
     return search_url
 
