@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 import numpy as np
 import tabulate
 import pandas as pd
-from tools.webscraping import refilter, get_text
 
 # TODO: calculate waiting period for books
 # TODO: make an exhaustive list of format code types
@@ -83,17 +82,17 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
             eresource_link = y.find('a', class_='cp-eresource-link')
 
             formats_data.append({
-                "format_description": get_text(format_),
-                "availability_status": get_text(availability_status),
-                "call_number": get_text(call_number),
-                "hold_counts": get_text(hold_counts),
-                "eresource_link": get_text(eresource_link),
+                "format_description": _get_text(format_),
+                "availability_status": _get_text(availability_status),
+                "call_number": _get_text(call_number),
+                "hold_counts": _get_text(hold_counts),
+                "eresource_link": _get_text(eresource_link),
             })
 
         result_items_data.append({
-            "title": get_text(title),
-            "subtitle": get_text(subtitle),
-            "author": get_text(author),
+            "title": _get_text(title),
+            "subtitle": _get_text(subtitle),
+            "author": _get_text(author),
             "formats": formats_data
         })
 
@@ -109,3 +108,6 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
 
     return data
 
+def _get_text(elem) -> str:
+    """ get text from a BeautifulSoup element if the element exists """
+    return elem.getText() if elem else ''

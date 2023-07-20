@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 from urllib.parse import quote_plus
 from typing import Literal, get_args, Callable
-from tools.webscraping import refilter
+from tools.webscraping import _refilter
 
 # DOCUMENTATION: https://developers.google.com/books/docs/v1/using#st_params
 
@@ -20,8 +20,8 @@ def search_google_books(author: str=None, title: str=None, keywords: str=None, l
     clean_results = clean_search_results(results)
     refiltered_results = (clean_results
         .assign(subtitle = lambda t: t.apply(lambda r: s if (s := r.get('subtitle')) else '', axis=1))
-        .loc[lambda t: (t.title + ' ' + t.subtitle).apply(lambda x: refilter(x, title)) & 
-                       t.authors.apply(lambda x: refilter(x, author))
+        .loc[lambda t: (t.title + ' ' + t.subtitle).apply(lambda x: _refilter(x, title)) & 
+                       t.authors.apply(lambda x: _refilter(x, author))
         ]
     )
     return refiltered_results
@@ -157,3 +157,12 @@ def get_publication_year(published_date: str) -> int:
     year_match = re.search(r'^\d{4}', published_date) if published_date else None
     year = int(year_match.group()) if year_match else 0
     return year
+
+
+def _refilter(full_string, search_string):
+    """ ensure all words in search_string appear in full_string """
+    if search_string:
+        search_words = re.findall(r'\w+', search_string)
+        return all(w.lower() in full_string.lower() for w in search_words)
+    else:
+        return True

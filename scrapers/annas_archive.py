@@ -3,7 +3,6 @@ import pandas as pd
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
 from typing import Literal
-from tools.webscraping import get_text
 import tabulate
 
 
@@ -115,7 +114,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
         author = x.find('div', class_='italic')
         title = x.find('h3')
 
-        file_details_text = get_text(file_details)
+        file_details_text = _get_text(file_details)
 
         try:
             filesize_mb = float(
@@ -144,9 +143,9 @@ def parse_results(content: bytes) -> pd.DataFrame:
         # to make it extra sure
 
         result_items_data.append({
-            "title": get_text(title).strip(),
-            "author": get_text(author).strip(),
-            "publisher": get_text(publisher).strip(),
+            "title": _get_text(title).strip(),
+            "author": _get_text(author).strip(),
+            "publisher": _get_text(publisher).strip(),
             "filesize_mb": filesize_mb,
             "language": language,
             "filetype": filetype,
@@ -157,3 +156,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
 
     return data
 
+
+def _get_text(elem) -> str:
+    """ get text from a BeautifulSoup element if the element exists """
+    return elem.getText() if elem else ''

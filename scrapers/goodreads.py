@@ -4,7 +4,6 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 import pandas as pd
 from typing import Callable
-from tools.webscraping import get_text
 from functools import reduce
 import tabulate
 
@@ -73,15 +72,15 @@ def parse_results(content: bytes) -> pd.DataFrame:
         author = x.find('a', class_='authorName')
         minirating = x.find('span', class_='minirating')
 
-        avg_rating_raw, num_ratings_raw = re.search(r'(\d\.\d\d) avg rating\D+([\d|,]+) ratings*', get_text(minirating)).groups()
+        avg_rating_raw, num_ratings_raw = re.search(r'(\d\.\d\d) avg rating\D+([\d|,]+) ratings*', _get_text(minirating)).groups()
         avg_rating = float(avg_rating_raw)
         num_ratings = int(num_ratings_raw.replace(',', ''))
 
-        title_text = get_text(title.find('span', role='heading')) if title else ''
+        title_text = _get_text(title.find('span', role='heading')) if title else ''
 
         result_items_data.append({
             "title": title_text,
-            "author": get_text(author),
+            "author": _get_text(author),
             "avg_rating": avg_rating,
             "num_ratings": num_ratings,
             "link": "https://www.goodreads.com/" + (title['href'] if title else ''),
@@ -175,3 +174,8 @@ def get_owned_books(goodreads_library_clean: pd.DataFrame) -> pd.DataFrame:
         .query('own')
         [['goodreads_id', 'author_search', 'title_search']]
     )
+
+
+def _get_text(elem) -> str:
+    """ get text from a BeautifulSoup element if the element exists """
+    return elem.getText() if elem else ''
