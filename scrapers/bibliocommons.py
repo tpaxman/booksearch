@@ -1,7 +1,7 @@
-from functools import partial
-from collections.abc import Iterable
 import re
 import requests
+from functools import partial
+from collections.abc import Iterable
 from typing import Callable, Literal
 from urllib.parse import quote_plus
 from bs4 import BeautifulSoup
@@ -20,46 +20,47 @@ FORMATCODE_TYPE = Literal['BK', 'AB', 'EBOOK']
 
 FORMATCODES_TYPE = Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE
 
+def generate_compose_search_url(library_subdomain: LIBRARY_SUBDOMAIN_TYPE) -> Callable:
+    def compose_search_url(
+        library_subdomain: LIBRARY_SUBDOMAIN_TYPE,
+        title: str=None,
+        author: str=None,
+        keywords: str=None,
+        publisher: str=None,
+        formatcodes: Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE = ('BK', 'EBOOK', 'AB'),
+        isolanguage: str=None,
+    ) -> pd.DataFrame:
+        """
+        Compose a search URL for a bibliocommons library search
+        """
 
-def compose_search_url(
-    library_subdomain: LIBRARY_SUBDOMAIN_TYPE,
-    title: str=None,
-    author: str=None,
-    anywhere: str=None,
-    publisher: str=None,
-    formatcodes: Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE = ('BK', 'EBOOK', 'AB'),
-    isolanguage: str=None,
-) -> pd.DataFrame:
-    """
-    Compose a search URL for a bibliocommons library search
-    """
+        if isinstance(formatcodes, str):
+            formatcode = formatcodes
+        else:
+            formatcode = ' OR '.join(formatcodes)
 
-    if isinstance(formatcodes, str):
-        formatcode = formatcodes
-    else:
-        formatcode = ' OR '.join(formatcodes)
+        kwargs = {
+            'title': title,
+            'author': author,
+            'anywhere': keywords,
+            'publisher': publisher,
+            'formatcode': formatcode,
+            'isolanguage': isolanguage,
+        }
 
-    kwargs = {
-        'title': title,
-        'author': author,
-        'anywhere': anywhere,
-        'publisher': publisher,
-        'formatcode': formatcode,
-        'isolanguage': isolanguage,
-    }
-
-    search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items() if v)
-    quoted_search_string = quote_plus(search_string)
-    search_url = f"https://{library_subdomain}.bibliocommons.com/v2/search?query={quoted_search_string}&searchType=bl"
-    return search_url
-
-
-compose_search_url_epl = partial(compose_search_url, library_subdomain='epl')
-
-compose_search_url_calgary = partial(compose_search_url, library_subdomain='calgary')
+        search_string = ' AND '.join(f'{k}:({v})' for k, v in kwargs.items() if v)
+        quoted_search_string = quote_plus(search_string)
+        root_url = f"https://{library_subdomain}.bibliocommons.com/v2/search"
+        search_url = f"{root_url}?query={quoted_search_string}&searchType=bl"
+        return search_url
+    return compose_search_url
 
 
-def parse_results(results_html: bytes, title_refilter: str = None, author_refilter: str = None) -> pd.DataFrame:
+compose_search_url_epl = generate_compose_search_url('epl')
+compose_search_url_calgary = generate_compose_search_url('calgary')
+
+
+def parse_results(results_html: bytes) -> pd.DataFrame:
     soup = BeautifulSoup(results_html, features='html.parser')
 
     try:
@@ -107,72 +108,5 @@ def parse_results(results_html: bytes, title_refilter: str = None, author_refilt
         .replace({'true_format': {'downloadable audiobook': 'audiobook'}})
     )
 
-    if title_refilter:
-        data = data.loc[lambda t: (t['title'] + ' ' + t['subtitle']).apply(lambda x: refilter(x, title_refilter))]
-
-    if author_refilter:
-        data = data.loc[lambda t: t['author'].apply(lambda x: refilter(x, author_refilter))]
-
     return data
-
-
-def agg_results(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        [['author_search', 'title_search', 'true_format']]
-        .value_counts()
-        .unstack()
-        .reindex(['book', 'ebook', 'web-ebook', 'audiobook'], axis=1)
-        .fillna(0)
-        .astype('int')
-        .reset_index()
-    )
-
-
-def create_view(results: pd.DataFrame) -> pd.DataFrame:
-    if results.empty:
-        return results
-
-    return (
-        results
-        .reindex(['true_format', 'hold_counts', 'title', 'author'], axis=1)
-        .reset_index(drop=True)
-    )
-
-
-def create_description(results: pd.DataFrame) -> str:
-    if results.empty:
-        return '<no results>'
-
-    description = (
-        results
-        .reindex(['true_format', 'title', 'author', 'hold_counts'], axis=1)
-        .groupby('true_format').first()
-        .reset_index()
-    )
-    string = tabulate.tabulate(description, showindex=False)
-    return string
-
-
-def create_oneliner(results: pd.DataFrame) -> str:
-    if results.empty:
-        return ''
-
-    return results.true_format.drop_duplicates().pipe(', '.join)
-
-def get_available_formats(parsed_data: pd.DataFrame) -> str:
-    return (parsed_data
-        .groupby('true_format')
-        .first()
-        .reset_index()
-        .assign(description = lambda t: '[' + t.true_format + '] ' + t.title + ': ' + t.subtitle + ' (' + t.author + ')')
-        .description
-        .pipe('\n'.join)
-    )
-
-
-def extract_library_subdomain(search_url: str) -> str:
-    return re.search(r'https://(\w+)', search_url).group(1)
-
-
 
