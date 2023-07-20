@@ -22,7 +22,6 @@ FORMATCODES_TYPE = Iterable[FORMATCODE_TYPE] | FORMATCODE_TYPE
 
 def generate_compose_search_url(library_subdomain: LIBRARY_SUBDOMAIN_TYPE) -> Callable:
     def compose_search_url(
-        library_subdomain: LIBRARY_SUBDOMAIN_TYPE,
         title: str=None,
         author: str=None,
         keywords: str=None,

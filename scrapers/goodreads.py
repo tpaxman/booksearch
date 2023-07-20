@@ -175,5 +175,3 @@ def get_owned_books(goodreads_library_clean: pd.DataFrame) -> pd.DataFrame:
         .query('own')
         [['goodreads_id', 'author_search', 'title_search']]
     )
-
-
