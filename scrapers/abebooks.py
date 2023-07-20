@@ -1,7 +1,7 @@
 import re
 from typing import Literal
 from urllib.parse import quote, quote_plus
-from bs4 import BeautifulSoup
+import bs4
 import pandas as pd
 
 # TODO: add a 'strict' filter mode where the title inputs are quoted
@@ -112,7 +112,7 @@ def compose_search_url(
 def parse_results(content: bytes) -> pd.DataFrame:
     """Parse the response content returned by an Abebooks search request."""
 
-    soup = BeautifulSoup(content, features='html.parser')
+    soup = bs4.BeautifulSoup(content, features='html.parser')
     results_block = soup.find('ul', class_='result-block', id='srp-results')
 
     if results_block:
