@@ -63,10 +63,8 @@ def compose_search_url(
     """
     Compose the search URL for Anna's Archive
     """
-
     # note: sortby=None defaults to 'most relevant'
     root_url = "https://annas-archive.org/search?"
-
     arguments = {
         "q": quote_plus(keywords),
         "filetype": filetype,
@@ -75,7 +73,6 @@ def compose_search_url(
         "ext": filetype,
         "sort": sortby,
     }
-
     arguments_string = '&'.join(f'{k}={v}' for k, v in arguments.items() if v)
     search_url = root_url + arguments_string
     return search_url
