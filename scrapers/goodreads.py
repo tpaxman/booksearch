@@ -104,54 +104,6 @@ def parse_results(content: bytes) -> pd.DataFrame:
     return data
 
 
-def agg_results(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        .loc[lambda t: t.groupby(['author_search', 'title_search'])['num_ratings'].idxmax()]
-        .set_index(['author_search', 'title_search'])[['avg_rating', 'num_ratings']]
-        .reset_index()
-    )
-
-
-def create_view(results: pd.DataFrame) -> pd.DataFrame:
-    if results.empty:
-        return results
-
-    return (
-        results
-        [['num_ratings', 'avg_rating', 'title', 'author']]
-        .sort_values('num_ratings', ascending=False)
-        .head(4)
-    )
-
-
-def create_description(results: pd.DataFrame) -> str:
-    if results.empty:
-        return '<no results>'
-
-    description = (
-        results
-        .loc[lambda t: t.num_ratings.idxmax()]
-        .to_frame()
-        .transpose()
-        .reindex(['avg_rating', 'num_ratings', 'author', 'title'], axis=1)
-        .assign(avg_rating = lambda t: t.avg_rating.astype('string') + ' / 5')
-        .assign(num_ratings = lambda t: t.num_ratings.astype('string') + ' Ratings')
-    )
-
-    return tabulate.tabulate(description, showindex=False)
-
-
-def create_oneliner(results: pd.DataFrame) -> str:
-    if results.empty:
-        return ''
-
-    description = results.loc[lambda t: t.num_ratings.idxmax()].pipe(lambda r: f'{r.avg_rating}/5 ({r.num_ratings} ratings) for {r.title} by {r.author}')
-    return description
-
-    
-
-
 def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
     """
     clean the Goodreads Library Export data file

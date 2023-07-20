@@ -54,7 +54,7 @@ VALID_LANGUAGES = Literal['_empty', 'en', 'fr', 'de', 'es']
 
 
 def compose_search_url(
-    query: str,
+    keywords: str,
     filetype: FILETYPES=None,
     language: VALID_LANGUAGES=None,
     content_type: CONTENT_TYPES="book_any",
@@ -68,7 +68,7 @@ def compose_search_url(
     root_url = "https://annas-archive.org/search?"
 
     arguments = {
-        "q": quote_plus(query),
+        "q": quote_plus(keywords),
         "filetype": filetype,
         "content": content_type,
         "lang": language,
@@ -82,13 +82,13 @@ def compose_search_url(
 
 
 def parse_results(content: bytes) -> pd.DataFrame:
+    # results come with some dirty html comments that need to be removed
     results_uncommented_html = (
         content
         .decode('utf-8')
         .replace('<!--', '')
         .replace('-->', '')
     )
-
     soup = BeautifulSoup(results_uncommented_html, features='html.parser')
 
     # remove all the "partial matches" from the soup
@@ -121,19 +121,21 @@ def parse_results(content: bytes) -> pd.DataFrame:
         file_details_text = get_text(file_details)
 
         try:
-            filesize_mb = float(re.search(r'(\S+)MB', file_details_text).group(1).replace('<', ''))
+            filesize_mb = float(
+                re.search(r'(\S+)MB', file_details_text).group(1).replace('<', '')
+            )
         except:
             filesize_mb = 0
 
         try:
-            item_language = re.search(r'^.*?\[(.*?)\].*MB', file_details_text).group(1)
+            language = re.search(r'^.*?\[(.*?)\].*MB', file_details_text).group(1)
         except:
-            item_language = ''
+            language = ''
 
         try:
-            item_filetype = re.search(r'(\w+), \S+MB', file_details_text).group(1)
+            filetype = re.search(r'(\w+), \S+MB', file_details_text).group(1)
         except:
-            item_filetype = ''
+            filetype = ''
 
         try:
             filename = re.search(r'"(.+)"', file_details_text).group(1)
@@ -149,80 +151,12 @@ def parse_results(content: bytes) -> pd.DataFrame:
             "author": get_text(author).strip(),
             "publisher": get_text(publisher).strip(),
             "filesize_mb": filesize_mb,
-            "language": item_language,
-            "filetype": item_filetype,
+            "language": language,
+            "filetype": filetype,
             "filename": filename,
         })
 
     data = pd.DataFrame(result_items_data)
 
     return data
-
-
-def agg_results(results: pd.DataFrame) -> pd.DataFrame:
-    return (
-        results
-        [['author_search', 'title_search', 'filetype']].value_counts()
-        .unstack()
-        .reindex(['epub', 'pdf'], axis=1)
-        .fillna(0)
-        .astype('int')
-        .reset_index()
-    )
-
-
-def create_view(results: pd.DataFrame) -> pd.DataFrame:
-    if results.empty:
-        return results
-
-    return (
-        results
-        .reindex(['filetype', 'filesize', 'language', 'title', 'author'], axis=1)
-        .loc[lambda t: t['filetype'].isin(('epub', 'pdf', 'mobi'))]
-        .groupby('filetype').first()
-        .reset_index()
-    )
-
-
-def create_description(results: pd.DataFrame) -> str:
-    if results.empty:
-        return '<no results>'
-
-    description_table = (
-        results
-        .assign(name = lambda t: t.author + ' - ' + t.title)
-        .reindex(['filetype', 'name', 'filesize_mb'], axis=1)
-        .assign(filesize_mb = lambda t: t.filesize_mb.astype('string') + ' MB')
-        .groupby('filetype').first()
-        .reset_index()
-    )
-    #return results['filetype'].drop_duplicates().pipe(', '.join)
-    descrip = tabulate.tabulate(description_table, showindex=False)
-    return descrip
-
-
-def create_oneliner(results: pd.DataFrame) -> str:
-    if results.empty:
-        return ''
-
-    aggregates = results.groupby('filetype').agg(size_min=('filesize_mb', 'min'), num=('title', 'count')).T.to_dict()
-
-    if 'epub' in aggregates:
-        epub_data = {k: int(v) for k, v in aggregates.get('epub').items()}
-        epub_descrip = 'epub ({size_min} MB)'.format(**epub_data)
-    else:
-        epub_descrip = ''
-    
-    if 'pdf' in aggregates:
-        pdf_data = {k: int(v) for k, v in aggregates.get('pdf').items()}
-        pdf_descrip = 'pdf ({size_min} MB)'.format(**pdf_data) if pdf_data else ''
-    else:
-        pdf_descrip = ''
-
-    others = [x for x in aggregates.keys() if x not in ('epub', 'pdf')]
-    others_descrip = 'Others: ' + ', '.join(others) if others else ''
-
-    description = ' / '.join(x for x in (epub_descrip, pdf_descrip, others_descrip) if x)
-    return description
-
 
