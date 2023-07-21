@@ -1,3 +1,5 @@
+import argparse
+import pathlib
 import re
 from functools import reduce
 import pandas as pd
@@ -43,6 +45,24 @@ USED_COLUMNS = [
     'exclusive_bookshelf',
 ]
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('goodreads_library_export_raw_csv')
+    parser.add_argument('--output-file', '-o')
+    args = parser.parse_args()
+
+    goodreads_library_export_raw_csv = args.goodreads_library_export_raw_csv
+    output_file = args.output_file
+
+    df_raw = pd.read_csv(goodreads_library_export_raw_csv)
+    df_clean = clean_library_export(df_raw)
+
+    if not output_file:
+        input_path = pathlib.Path(goodreads_library_export_raw_csv)
+        output_file = (input_path.parent / (input_path.stem + '_clean.csv'))
+        
+    df_clean.to_csv(output_file, index=False)
+
 
 
 def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
@@ -74,13 +94,13 @@ def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=F
     )
 
     if expand_shelves:
-        shelf_dummies = get_shelf_dummies(goodreads_library_clean)
+        shelf_dummies = _get_shelf_dummies(goodreads_library_clean)
         return goodreads_library_clean.merge(shelf_dummies, how='left', on='goodreads_id')
     else:
         return goodreads_library_clean
 
 
-def get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_names: bool=False) -> pd.DataFrame:
+def _get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_names: bool=False) -> pd.DataFrame:
     shelf_dummies = (
         goodreads_library_clean
             .set_index('goodreads_id')
@@ -111,8 +131,12 @@ def get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_nam
 def get_owned_books(goodreads_library_clean: pd.DataFrame) -> pd.DataFrame:
     return (
         goodreads_library_clean
-        .pipe(lambda t: t.merge(t.pipe(get_shelf_dummies), on='goodreads_id'))
+        .pipe(lambda t: t.merge(t.pipe(_get_shelf_dummies), on='goodreads_id'))
         .rename(columns={'author_surname': 'author_search', 'title': 'title_search'})
         .query('own')
         [['goodreads_id', 'author_search', 'title_search']]
     )
+
+
+if __name__=='__main__':
+    main()
