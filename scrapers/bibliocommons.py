@@ -71,7 +71,6 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
         title = x.find('span', class_='title-content')
         subtitle = x.find('span', class_='cp-subtitle')
         author = x.find('a', class_='author-link')
-
         formats = x.find_all('div', class_='manifestation-item')
         formats_data = []
         for y in formats:
@@ -80,6 +79,7 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
             call_number = y.find('span', class_='cp-call-number')
             hold_counts = y.find('span', class_='cp-hold-counts')
             eresource_link = y.find('a', class_='cp-eresource-link')
+            item_href = y.find('a', class_='manifestation-item-link')['href']
 
             formats_data.append({
                 "format_description": _get_text(format_),
@@ -87,6 +87,7 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
                 "call_number": _get_text(call_number),
                 "hold_counts": _get_text(hold_counts),
                 "eresource_link": _get_text(eresource_link),
+                "item_href": item_href,
             })
 
         result_items_data.append({
