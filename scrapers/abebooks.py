@@ -157,7 +157,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
             "bookEdition": "edition",
             "bookFormat": "binding",
         })
-        .astype({'price': 'float', 'year_published': 'int'})
+        .astype({'price': 'float', 'year_published': 'float'})
         .convert_dtypes()
     )
 
