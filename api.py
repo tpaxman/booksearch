@@ -1,5 +1,5 @@
 import requests
-from typing import Literal
+from typing import Literal, Callable
 from collections import namedtuple
 import scrapers.abebooks as abebooks
 import scrapers.annas_archive as annas_archive
@@ -16,13 +16,8 @@ SOURCE_TYPE = Literal[
     'kobo',
 ]
 
-def compose_search_url(
-    source: SOURCE_TYPE,
-    author: str=None,
-    title: str=None,
-    keywords: str=None,
-) -> str:
-    """Compose search url for a selected source."""
+def generate_compose_search_url(source: SOURCE_TYPE) -> Callable:
+    """Generate function for composing search url."""
     composer = {
         'abebooks': abebooks.compose_search_url,
         'annas_archive': annas_archive.compose_search_url,
@@ -32,14 +27,18 @@ def compose_search_url(
         'kobo': kobo.compose_search_url,
     }.get(source)
 
-    if source in ('abebooks', 'epl', 'calgary'):
-        url = composer(author=author, title=title, keywords=keywords)
-    elif source in ('goodreads', 'annas_archive', 'kobo'):
-        keywords = ' '.join(filter(bool, (author, title, keywords)))
-        url = composer(keywords=keywords)
-    else:
-        raise ValueError
-    return url
+    def compose_search_url(author: str=None, title: str=None, keywords: str=None) -> str:
+        """Compose search url."""
+        if source in ('abebooks', 'epl', 'calgary'):
+            url = composer(author=author, title=title, keywords=keywords)
+        elif source in ('goodreads', 'annas_archive', 'kobo'):
+            keywords = ' '.join(filter(bool, (author, title, keywords)))
+            url = composer(keywords=keywords)
+        else:
+            raise ValueError
+        return url
+
+    return compose_search_url
 
 
 def download(url):
@@ -61,15 +60,13 @@ def download(url):
     return data
 
 
-def quick_search(
-    source: SOURCE_TYPE,
-    author: str=None,
-    title: str=None,
-    keywords: str=None,
-) -> str:
-    """Generate search url, get content, and parse to table."""
-    url = compose_search_url(source=source, author=author, title=title, keywords=keywords)
-    data = download(url)
-    return data
+def quick_search(source: SOURCE_TYPE) -> Callable:
+    def searcher(author: str=None, title: str=None, keywords: str=None) -> str:
+        """Generate search url, get content, and parse to table."""
+        compose_search_url = generate_compose_search_url(source=source)
+        url = compose_search_url(author=author, title=title, keywords=keywords)
+        data = download(url)
+        return data
+    return searcher
 
     
