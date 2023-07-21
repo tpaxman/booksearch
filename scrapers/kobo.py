@@ -25,18 +25,20 @@ def parse_results(content: bytes) -> pd.DataFrame:
             subtitle = item.find('p', class_='subtitle')
             author = item.find('a', class_='contributor-name')
             price_value = item.find('span', class_='price-value')
-
             try:
                 reg_price = price_value.find('span', class_='was-price')
                 sale_price = price_value.find('span', class_='alternate-price-style')
-                reg_amount, reg_currency = _extract_price_details(reg_price)
-                sale_amount, sale_currency = _extract_price_details(sale_price)
-            except:
-                try:
-                    reg_amount, reg_currency = _extract_price_details(price_value)
-                    sale_amount, sale_currency = None, None
-                except:
-                    reg_amount, reg_currency, sale_amount, sale_currency = [None]*4
+            except AttributeError:
+                reg_price, sale_price = None, None
+
+            reg_amount, reg_currency = (
+                _extract_price_details(reg_price) if reg_price else 
+                _extract_price_details(price_value) if price_value else
+                (None, None)
+            )
+            sale_amount, sale_currency = (
+                _extract_price_details(sale_price) if sale_price else (None, None)
+            )
 
             result_items_data.append({
                 "title": _get_text_stripped(title),
