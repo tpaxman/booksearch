@@ -26,36 +26,25 @@ def parse_results(content: bytes) -> pd.DataFrame:
             author = item.find('a', class_='contributor-name')
             price_value = item.find('span', class_='price-value')
 
-            if price_value:
-
+            try:
                 reg_price = price_value.find('span', class_='was-price')
                 sale_price = price_value.find('span', class_='alternate-price-style')
-
-                if reg_price and sale_price:
-                    reg_price_amount, reg_price_currency = (
-                        _extract_price_details(reg_price)
-                    )
-                    sale_price_amount, sale_price_currency = (
-                        _extract_price_details(sale_price)
-                    )
-                else:
-                    reg_price_amount, reg_price_currency = (
-                        _extract_price_details(price_value)
-                    )
-                    sale_price_amount, sale_price_currency = None, None
-            else:
-                reg_price_amount = None
-                reg_price_currency = None
-                sale_price_amount = None
-                sale_price_currency = None
+                reg_amount, reg_currency = _extract_price_details(reg_price)
+                sale_amount, sale_currency = _extract_price_details(sale_price)
+            except:
+                try:
+                    reg_amount, reg_currency = _extract_price_details(price_value)
+                    sale_amount, sale_currency = None, None
+                except:
+                    reg_amount, reg_currency, sale_amount, sale_currency = [None]*4
 
             result_items_data.append({
                 "title": _get_text_stripped(title),
                 "subtitle": _get_text_stripped(subtitle),
                 "author": _get_text_stripped(author),
-                "reg_price": reg_price_amount,
-                "sale_price": sale_price_amount,
-                "currency": reg_price_currency,
+                "reg_price": reg_amount,
+                "sale_price": sale_amount,
+                "currency": reg_currency,
                 "link": title['href'],
             })
 
