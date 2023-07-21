@@ -16,22 +16,27 @@ SOURCE_TYPE = Literal[
     'kobo',
 ]
 
-def compose_search_url(source: SOURCE_TYPE, author=None, title=None, keywords=None):
-    if source == 'abebooks':
-        url = abebooks.compose_search_url(author=author, title=title, keywords=keywords)
-    elif source == 'annas_archive':
-        keywords = ' '.join(x for x in (author, title, keywords) if x)
-        url = annas_archive.compose_search_url(keywords=keywords)
-    elif source == 'goodreads':
-        keywords = ' '.join(x for x in (author, title, keywords) if x)
-        url = goodreads.compose_search_url(keywords=keywords)
-    elif source in ('epl', 'calgary'):
-        url = bibliocommons.generate_compose_search_url(source)(
-            author=author, title=title, keywords=keywords
-        )
-    elif source == 'kobo':
-        keywords = ' '.join(x for x in (author, title, keywords) if x)
-        url = kobo.compose_search_url(keywords=keywords)
+def compose_search_url(
+    source: SOURCE_TYPE,
+    author: str=None,
+    title: str=None,
+    keywords: str=None,
+) -> str:
+    """Compose search url for a selected source."""
+    composer = {
+        'abebooks': abebooks.compose_search_url,
+        'annas_archive': annas_archive.compose_search_url,
+        'goodreads': goodreads.compose_search_url,
+        'epl': bibliocommons.generate_compose_search_url('epl'),
+        'calgary': bibliocommons.generate_compose_search_url('calgary'),
+        'kobo': kobo.compose_search_url,
+    }.get(source)
+
+    if source in ('abebooks', 'epl', 'calgary'):
+        url = composer(author=author, title=title, keywords=keywords)
+    elif source in ('goodreads', 'annas_archive', 'kobo'):
+        keywords = ' '.join(filter(bool, (author, title, keywords)))
+        url = composer(keywords=keywords)
     else:
         raise ValueError
     return url
@@ -55,3 +60,16 @@ def download(url):
     data = parse_results(content)
     return data
 
+
+def quick_search(
+    source: SOURCE_TYPE,
+    author: str=None,
+    title: str=None,
+    keywords: str=None,
+) -> str:
+    """Generate search url, get content, and parse to table."""
+    url = compose_search_url(source=source, author=author, title=title, keywords=keywords)
+    data = download(url)
+    return data
+
+    
