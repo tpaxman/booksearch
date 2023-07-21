@@ -15,11 +15,9 @@ def parse_results(content: bytes) -> pd.DataFrame:
     soup = BeautifulSoup(content, features='html.parser')
     results = soup.find('ul', class_='result-items')
 
-    if not results:
-        result_items_data = []
-    else:
+    result_items_data = []
+    if results:
         result_items = results.find_all('li', class_='book')
-        result_items_data = []
         for item in result_items:
             title = item.find('h2', class_='title').find('a')
             subtitle = item.find('p', class_='subtitle')
