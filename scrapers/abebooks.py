@@ -151,14 +151,13 @@ def parse_results(content: bytes) -> pd.DataFrame:
         ]) 
         .rename(columns={
             "name": "title",
-            "datePublished": "date_published",
+            "datePublished": "year_published",
             "priceCurrency": "currency",
             "itemCondition": "condition",
             "bookEdition": "edition",
             "bookFormat": "binding",
         })
-        # TODO: I think we can convert date_published to int since it appears to be year
-        .astype({'price': 'float'})
+        .astype({'price': 'float', 'year_published': 'int'})
         .convert_dtypes()
     )
 
