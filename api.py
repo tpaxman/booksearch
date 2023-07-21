@@ -1,5 +1,5 @@
 import requests
-from typing import Literal, Callable
+from typing import Literal, Callable, get_args
 from collections import namedtuple
 import scrapers.abebooks as abebooks
 import scrapers.annas_archive as annas_archive
@@ -18,14 +18,18 @@ SOURCE_TYPE = Literal[
 
 def generate_compose_search_url(source: SOURCE_TYPE) -> Callable:
     """Generate function for composing search url."""
-    composer = {
+    composer_functions = {
         'abebooks': abebooks.compose_search_url,
         'annas_archive': annas_archive.compose_search_url,
         'goodreads': goodreads.compose_search_url,
         'epl': bibliocommons.generate_compose_search_url('epl'),
         'calgary': bibliocommons.generate_compose_search_url('calgary'),
         'kobo': kobo.compose_search_url,
-    }.get(source)
+    }
+    assert set(composer_functions) == set(get_args(SOURCE_TYPE)), (
+        'inconsistent set of source types listed here'
+    )
+    composer = composer_functions.get(source)
 
     def compose_search_url(author: str=None, title: str=None, keywords: str=None) -> str:
         """Compose search url."""
@@ -35,7 +39,7 @@ def generate_compose_search_url(source: SOURCE_TYPE) -> Callable:
             keywords = ' '.join(filter(bool, (author, title, keywords)))
             url = composer(keywords=keywords)
         else:
-            raise ValueError
+            raise ValueError('unknown "source" value {source}')
         return url
 
     return compose_search_url
@@ -69,4 +73,14 @@ def quick_search(source: SOURCE_TYPE) -> Callable:
         return data
     return searcher
 
-    
+
+def _quick_search_all(author: str=None, title: str=None, keywords: str=None) -> dict:
+    """Search all the sources."""
+    return {
+        source: quick_search(source)(author=author, title=title, keywords=keywords)
+        for source in get_args(SOURCE_TYPE)
+    }
+
+        
+
+
