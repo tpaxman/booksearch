@@ -101,58 +101,60 @@ def parse_results(content: bytes) -> pd.DataFrame:
     result_items = [x.find('a').find('div').findNextSibling() 
                     for x in soup.find_all('div', class_='h-[125]')]
 
-    if not result_items:
-        # TODO: remove this repeated thing
-        return pd.DataFrame()
-
-    # TODO: add in link 
-    # TODO: add in file extension
     result_items_data = []
-    for x in result_items:
-        file_details = x.find('div', class_='text-xs')
-        publisher = x.find('div', class_='text-sm')
-        author = x.find('div', class_='italic')
-        title = x.find('h3')
+    if result_items:
+        # TODO: add in link 
+        # TODO: add in file extension
+        result_items_data = []
+        for x in result_items:
+            file_details = x.find('div', class_='text-xs')
+            publisher = x.find('div', class_='text-sm')
+            author = x.find('div', class_='italic')
+            title = x.find('h3')
 
-        file_details_text = _get_text(file_details)
+            file_details_text = _get_text(file_details)
 
-        try:
-            filesize_mb = float(
-                re.search(r'(\S+)MB', file_details_text).group(1).replace('<', '')
-            )
-        except:
-            filesize_mb = 0
+            try:
+                filesize_mb = float(
+                    re.search(r'(\S+)MB', file_details_text).group(1).replace('<', '')
+                )
+            except:
+                filesize_mb = 0
 
-        try:
-            language = re.search(r'^.*?\[(.*?)\].*MB', file_details_text).group(1)
-        except:
-            language = ''
+            try:
+                language = re.search(r'^.*?\[(.*?)\].*MB', file_details_text).group(1)
+            except:
+                language = ''
 
-        try:
-            filetype = re.search(r'(\w+), \S+MB', file_details_text).group(1)
-        except:
-            filetype = ''
+            try:
+                filetype = re.search(r'(\w+), \S+MB', file_details_text).group(1)
+            except:
+                filetype = ''
 
-        try:
-            filename = re.search(r'"(.+)"', file_details_text).group(1)
-        except:
-            filename = ''
+            try:
+                filename = re.search(r'"(.+)"', file_details_text).group(1)
+            except:
+                filename = ''
 
 
-        # TODO: add a second filter on the returned data based on the input arguments just
-        # to make it extra sure
+            # TODO: add a second filter on the returned data based on the input arguments just
+            # to make it extra sure
 
-        result_items_data.append({
-            "title": _get_text(title).strip(),
-            "author": _get_text(author).strip(),
-            "publisher": _get_text(publisher).strip(),
-            "filesize_mb": filesize_mb,
-            "language": language,
-            "filetype": filetype,
-            "filename": filename,
-        })
+            result_items_data.append({
+                "title": _get_text(title).strip(),
+                "author": _get_text(author).strip(),
+                "publisher": _get_text(publisher).strip(),
+                "filesize_mb": filesize_mb,
+                "language": language,
+                "filetype": filetype,
+                "filename": filename,
+            })
 
-    data = pd.DataFrame(result_items_data)
+    data = (
+        pd.DataFrame(result_items_data)
+        .reindex(['title', 'author', 'publisher','filesize_mb', 'language', 
+        'filetype', 'filename'], axis=1)
+    )
 
     return data
 
