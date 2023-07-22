@@ -1,3 +1,4 @@
+import re
 import requests
 from typing import Literal, Callable, get_args
 from collections import namedtuple
@@ -64,12 +65,27 @@ def download(url):
     return data
 
 
-def quick_search(source: SOURCE_TYPE) -> Callable:
+def _generate_is_subset(search_string: str) -> Callable:
+    def _is_subset(main_string: str) -> bool:
+        main_string_parts = set(re.findall(r'\w+', main_string.lower()))
+        search_string_parts = set(re.findall(r'\w+', search_string.lower()))
+        return search_string_parts.issubset(main_string_parts)
+    return _is_subset
+
+
+def quick_search(source: SOURCE_TYPE, refilter: bool=True) -> Callable:
     def searcher(author: str=None, title: str=None, keywords: str=None) -> str:
         """Generate search url, get content, and parse to table."""
         compose_search_url = generate_compose_search_url(source=source)
         url = compose_search_url(author=author, title=title, keywords=keywords)
         data = download(url)
+        if refilter and source in ('goodreads', 'annas_archive', 'kobo'):
+        #if refilter:
+            data = data.loc[
+                lambda t:
+                t['title'].apply(_generate_is_subset(title)) & 
+                t['author'].apply(_generate_is_subset(author))
+            ].reset_index(drop=True)
         return data
     return searcher
 

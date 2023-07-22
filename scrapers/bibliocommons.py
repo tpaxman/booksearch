@@ -83,7 +83,7 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
 
             formats_data.append({
                 "format_description": _get_text(format_),
-                "availability_status": _get_text(availability_status),
+                "availability_status": _get_text(availability_status).strip(),
                 "call_number": _get_text(call_number),
                 "hold_counts": _get_text(hold_counts),
                 "eresource_link": _get_text(eresource_link),

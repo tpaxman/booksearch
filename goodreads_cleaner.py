@@ -49,13 +49,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('goodreads_library_export_raw_csv')
     parser.add_argument('--output-file', '-o')
+    parser.add_argument('--expand-shelves', '-e', action='store_true')
     args = parser.parse_args()
 
     goodreads_library_export_raw_csv = args.goodreads_library_export_raw_csv
     output_file = args.output_file
+    expand_shelves = args.expand_shelves
 
     df_raw = pd.read_csv(goodreads_library_export_raw_csv)
-    df_clean = clean_library_export(df_raw)
+    df_clean = clean_library_export(df_raw, expand_shelves=expand_shelves)
 
     if not output_file:
         input_path = pathlib.Path(goodreads_library_export_raw_csv)

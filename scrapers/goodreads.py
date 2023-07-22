@@ -33,7 +33,7 @@ def parse_results(content: bytes) -> pd.DataFrame:
 
         avg_rating_raw, num_ratings_raw = re.search(r'(\d\.\d\d) avg rating\D+([\d|,]+) ratings*', _get_text(minirating)).groups()
         avg_rating = float(avg_rating_raw)
-        num_ratings = int(num_ratings_raw.replace(',', ''))
+        num_ratings = float(num_ratings_raw.replace(',', ''))
 
         title_text = _get_text(title.find('span', role='heading')) if title else ''
         item_href = re.sub(r'\?.*', '', title['href']) if title else ''
