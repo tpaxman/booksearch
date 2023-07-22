@@ -50,6 +50,7 @@ def main():
     parser.add_argument('goodreads_library_export_raw_csv')
     parser.add_argument('--output-file', '-o')
     parser.add_argument('--expand-shelves', '-e', action='store_true')
+    parser.add_argument('--expand-shelves', '-e', action='store_true')
     args = parser.parse_args()
 
     goodreads_library_export_raw_csv = args.goodreads_library_export_raw_csv
@@ -66,8 +67,11 @@ def main():
     df_clean.to_csv(output_file, index=False)
 
 
-
-def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=False) -> pd.DataFrame:
+def clean_library_export(
+    goodreads_library: pd.DataFrame,
+    expand_shelves: bool=False,
+    filter_to_needed: bool=False,
+) -> pd.DataFrame:
     """
     clean the Goodreads Library Export data file
     """
@@ -95,11 +99,17 @@ def clean_library_export(goodreads_library: pd.DataFrame, expand_shelves: bool=F
         )
     )
 
+    data = goodreads_library_clean
+    shelf_dummies = _get_shelf_dummies(goodreads_library_clean)
+
+    if filter_to_needed:
+        needed = shelf_dummies.query('`to-read` and not own and not `own-epub`')[['goodreads_id']]
+        data = data.merge(needed, how='inner', on='goodreads_id')
+
     if expand_shelves:
-        shelf_dummies = _get_shelf_dummies(goodreads_library_clean)
-        return goodreads_library_clean.merge(shelf_dummies, how='left', on='goodreads_id')
-    else:
-        return goodreads_library_clean
+        data = data.merge(shelf_dummies, how='left', on='goodreads_id')
+
+    return data
 
 
 def _get_shelf_dummies(goodreads_library_clean: pd.DataFrame, normalize_shelf_names: bool=False) -> pd.DataFrame:
