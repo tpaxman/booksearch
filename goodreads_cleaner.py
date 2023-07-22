@@ -43,13 +43,14 @@ USED_COLUMNS = [
     'publication_year_original',
     'bookshelves', 
     'exclusive_bookshelf',
+    'isbn',
+    'isbn13',
 ]
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('goodreads_library_export_raw_csv')
     parser.add_argument('--output-file', '-o')
-    parser.add_argument('--expand-shelves', '-e', action='store_true')
     parser.add_argument('--expand-shelves', '-e', action='store_true')
     args = parser.parse_args()
 
