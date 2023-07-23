@@ -61,10 +61,23 @@ compose_search_url_calgary = generate_compose_search_url('calgary')
 def parse_results(results_html: bytes) -> pd.DataFrame:
     soup = BeautifulSoup(results_html, features='html.parser')
 
+    final_columns = [
+        'title',
+        'subtitle',
+        'author',
+        'true_format',
+        'format_description',
+        'availability_status',
+        'call_number',
+        'hold_counts',
+        'eresource_link',
+        'item_href',
+    ]
+
     try:
         result_items = soup.find('ul', class_='results').find_all('li', class_='cp-search-result-item')
     except:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=final_columns)
 
     result_items_data = []
     for x in result_items:
@@ -101,11 +114,11 @@ def parse_results(results_html: bytes) -> pd.DataFrame:
     base_data = pd.DataFrame(result_items_data)
     formats = base_data.formats.explode().apply(pd.Series)
     data = base_data.drop(columns='formats').join(formats)
-
     data = (data
         .assign(true_format = lambda t: np.where(t.format_description.eq('eBook') & t.call_number.eq('Internet Access'), 'web-ebook', t.format_description.str.lower()))
         .replace({'true_format': {'downloadable audiobook': 'audiobook'}})
         .reset_index(drop=True)
+        .reindex(final_columns, axis=1)
     )
 
     return data
