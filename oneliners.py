@@ -3,14 +3,11 @@ from typing import get_args, Callable
 import pandas as pd
 import api
 
-"""
-GOOD: 4.54 (380) /
-ABE:  $20-$800 (13) /
-EDM:  edmbooks:$10 | bookseller:$20 | alhambra|catsby|mrseeker
-KOBO: $10
-ANNA: epub|pdf
-LIB:  book|epub|audio|web
-"""
+pd.options.display.width = 160
+pd.options.display.max_columns = 20
+pd.options.display.min_rows = 8
+pd.options.display.max_rows = 30
+pd.options.display.max_colwidth = 25
 
 VALID_SOURCES = get_args(api.SOURCE_TYPE)
 
@@ -37,22 +34,35 @@ def main():
     parser.add_argument('--title', '-t', nargs='+')
     parser.add_argument('--keywords', '-k', nargs='+')
     parser.add_argument('--source', '-s', choices=VALID_SOURCES)
+    parser.add_argument('--filter', '-f', nargs='+')
 
     args = parser.parse_args()
     author = ' '.join(args.author) if args.author else None
     title = ' '.join(args.title) if args.title else None
     keywords = ' '.join(args.keywords) if args.keywords else None
     source = args.source
+    _filter = args.filter
 
-    searchers = {source: api.quick_search(source) for source in VALID_SOURCES}
-
+    assert not (_filter and not source), 'must specify source-level view to apply filters'
+    
     if source:
         # just look at one specific result
-        df_results = searchers[source](author=author, title=title, keywords=keywords)
-        print(df_results[DISPLAY_COLUMNS[source]])
+        display_columns = DISPLAY_COLUMNS[source]
+        df_results = api.quick_search(source)(author=author, title=title, keywords=keywords)
+        if _filter:
+            assert all(x.count(':') == 1 for x in _filter), 'filter must have color-separated pairs (no spaces between)'
+            filter_pairs = dict(x.split(':') for x in _filter)
+            assert set(filter_pairs.keys()).issubset(df_results.columns), (
+                'all filters must match columns in results table'
+            )
+            for column, filter_value in filter_pairs.items():
+                df_results = df_results.loc[lambda t: t[column].str.lower().str.contains(filter_value.lower())]
+        df_selected = df_results[display_columns]
+        print(df_selected)
 
     else:
 
+        searchers = {source: api.quick_search(source) for source in VALID_SOURCES}
         results = {
             source: searcher(author=author, title=title, keywords=keywords)
             for source, searcher in searchers.items()
