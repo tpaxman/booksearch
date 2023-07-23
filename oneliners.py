@@ -20,45 +20,64 @@ EDMONTON_STORE_ALIASES = {
     'The Bookseller': 'bookseller',
     "The Great Catsby's Rare Books": 'catsby',
     'Edmonton Book Store': 'edmonton'
- }
+}
+
+DISPLAY_COLUMNS = {
+    'abebooks': ['title', 'author', 'price', 'seller_name', 'seller_city', 'binding'],
+    'epl': ['title', 'author', 'true_format', 'hold_counts'],
+    'calgary': ['title', 'author', 'true_format', 'hold_counts'],
+    'kobo': ['title', 'author', 'reg_price', 'sale_price'],
+    'goodreads': ['title', 'author', 'avg_rating', 'num_ratings'],
+    'annas_archive': ['title', 'author', 'filesize_mb', 'language', 'filetype'],
+}
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--author', '-a', nargs='+')
     parser.add_argument('--title', '-t', nargs='+')
     parser.add_argument('--keywords', '-k', nargs='+')
+    parser.add_argument('--source', '-s', choices=VALID_SOURCES)
 
     args = parser.parse_args()
     author = ' '.join(args.author) if args.author else None
     title = ' '.join(args.title) if args.title else None
     keywords = ' '.join(args.keywords) if args.keywords else None
+    source = args.source
 
     searchers = {source: api.quick_search(source) for source in VALID_SOURCES}
-    results = {
-        source: searcher(author=author, title=title, keywords=keywords)
-        for source, searcher in searchers.items()
-    }
 
-    results_bibliocommons = pd.concat((
-        results['epl'],
-        results['calgary'].query('true_format != "book"')
-    ))
+    if source:
+        # just look at one specific result
+        df_results = searchers[source](author=author, title=title, keywords=keywords)
+        print(df_results[DISPLAY_COLUMNS[source]])
 
-    oneliners = {
-        'abebooks': results['abebooks'].pipe(create_abebooks_oneliner),
-        'edmonton': results['abebooks'].pipe(create_abebooks_edmonton_oneliner),
-        'kobo': results['kobo'].pipe(create_kobo_oneliner),
-        'bibliocommons': results_bibliocommons.pipe(create_bibliocommons_oneliner),
-        'annas_archive': results['annas_archive'].pipe(create_annas_archive_oneliner),
-        'goodreads': results['goodreads'].pipe(create_goodreads_oneliner),
-    }
+    else:
 
-    display_string = '\n'.join(
-        source.upper()[:3] + ': ' + (oneliner if oneliner else '--')
-        for source, oneliner in oneliners.items()
-    )
+        results = {
+            source: searcher(author=author, title=title, keywords=keywords)
+            for source, searcher in searchers.items()
+        }
 
-    print(display_string)
+        results_bibliocommons = pd.concat((
+            results['epl'],
+            results['calgary'].query('true_format != "book"')
+        ))
+
+        oneliners = {
+            'abebooks': results['abebooks'].pipe(create_abebooks_oneliner),
+            'edmonton': results['abebooks'].pipe(create_abebooks_edmonton_oneliner),
+            'kobo': results['kobo'].pipe(create_kobo_oneliner),
+            'bibliocommons': results_bibliocommons.pipe(create_bibliocommons_oneliner),
+            'annas_archive': results['annas_archive'].pipe(create_annas_archive_oneliner),
+            'goodreads': results['goodreads'].pipe(create_goodreads_oneliner),
+        }
+
+        display_string = '\n'.join(
+            source.upper()[:3] + ': ' + (oneliner if oneliner else '--')
+            for source, oneliner in oneliners.items()
+        )
+
+        print(display_string)
             
 
 
