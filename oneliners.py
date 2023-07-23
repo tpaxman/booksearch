@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--keywords', '-k', nargs='+')
     parser.add_argument('--source', '-s', choices=VALID_SOURCES)
     parser.add_argument('--filter', '-f', nargs='+')
+    parser.add_argument('--print-url', '-u', action='store_true')
 
     args = parser.parse_args()
     author = ' '.join(args.author) if args.author else None
@@ -42,10 +43,18 @@ def main():
     keywords = ' '.join(args.keywords) if args.keywords else None
     source = args.source
     _filter = args.filter
+    print_url = args.print_url
 
     assert not (_filter and not source), 'must specify source-level view to apply filters'
+    # TODO: make this flexible for printing all urls instead at smoe point
+    assert not (print_url and not source), 'must specify source-level view to do url print'
     
     if source:
+        if print_url:
+            compose_search_url = api.generate_compose_search_url(source)
+            search_url = compose_search_url(author=author, title=title, keywords=keywords)
+            print(search_url)
+            return
         # just look at one specific result
         display_columns = DISPLAY_COLUMNS[source]
         df_results = api.quick_search(source)(author=author, title=title, keywords=keywords)
