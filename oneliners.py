@@ -20,7 +20,7 @@ EDMONTON_STORE_ALIASES = {
 }
 
 DISPLAY_COLUMNS = {
-    'abebooks': ['title', 'author', 'price', 'seller_name', 'seller_city', 'binding'],
+    'abebooks': ['title', 'author', 'price', 'seller_name', 'seller_city', 'seller_country', 'binding'],
     'epl': ['title', 'author', 'true_format', 'hold_counts'],
     'calgary': ['title', 'author', 'true_format', 'hold_counts'],
     'kobo': ['title', 'author', 'reg_price', 'sale_price'],
