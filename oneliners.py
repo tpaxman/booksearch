@@ -55,6 +55,7 @@ def main():
             search_url = compose_search_url(author=author, title=title, keywords=keywords)
             print(search_url)
             return
+
         # just look at one specific result
         display_columns = DISPLAY_COLUMNS[source]
         df_results = api.quick_search(source)(author=author, title=title, keywords=keywords)
@@ -70,34 +71,38 @@ def main():
         print(df_selected)
 
     else:
-
-        searchers = {source: api.quick_search(source) for source in VALID_SOURCES}
-        results = {
-            source: searcher(author=author, title=title, keywords=keywords)
-            for source, searcher in searchers.items()
-        }
-
-        results_bibliocommons = pd.concat((
-            results['epl'],
-            results['calgary'].query('true_format != "book"')
-        ))
-
-        oneliners = {
-            'abebooks': results['abebooks'].pipe(create_abebooks_oneliner),
-            'edmonton': results['abebooks'].pipe(create_abebooks_edmonton_oneliner),
-            'kobo': results['kobo'].pipe(create_kobo_oneliner),
-            'bibliocommons': results_bibliocommons.pipe(create_bibliocommons_oneliner),
-            'annas_archive': results['annas_archive'].pipe(create_annas_archive_oneliner),
-            'goodreads': results['goodreads'].pipe(create_goodreads_oneliner),
-        }
-
-        display_string = '\n'.join(
-            source.upper()[:3] + ': ' + (oneliner if oneliner else '--')
-            for source, oneliner in oneliners.items()
-        )
-
+        display_string = _form_oneliners(author=author, title=title, keywords=keywords)
         print(display_string)
             
+
+def _form_oneliners(author, title, keywords) -> str:
+    searchers = {s: api.quick_search(s) for s in VALID_SOURCES}
+    results = {
+        s: searcher(author=author, title=title, keywords=keywords)
+        for s, searcher in searchers.items()
+    }
+
+    results_bibliocommons = pd.concat((
+        results['epl'],
+        results['calgary'].query('true_format != "book"')
+    ))
+
+    oneliners = {
+        'abebooks': results['abebooks'].pipe(_create_abebooks_oneliner),
+        'edmonton': results['abebooks'].pipe(_create_abebooks_edmonton_oneliner),
+        'kobo': results['kobo'].pipe(_create_kobo_oneliner),
+        'bibliocommons': results_bibliocommons.pipe(_create_bibliocommons_oneliner),
+        'annas_archive': results['annas_archive'].pipe(_create_annas_archive_oneliner),
+        'goodreads': results['goodreads'].pipe(_create_goodreads_oneliner),
+    }
+
+    display_string = '\n'.join(
+        s.upper()[:3] + ': ' + (oneliner if oneliner else '--')
+        for s, oneliner in oneliners.items()
+    )
+    
+    return display_string
+
 
 
 def _skip_if_empty(oneliner_creator: Callable) -> Callable:
@@ -111,13 +116,13 @@ def _skip_if_empty(oneliner_creator: Callable) -> Callable:
 
 
 @_skip_if_empty
-def create_annas_archive_oneliner(df_results):
+def _create_annas_archive_oneliner(df_results):
     oneliner = ' | '.join({'epub', 'pdf'}.intersection(df_results['filetype']))
     return oneliner
 
 
 @_skip_if_empty
-def create_goodreads_oneliner(df_results):
+def _create_goodreads_oneliner(df_results):
     avg_rating, num_ratings = (
         df_results.loc[df_results.num_ratings.idxmax(), ['avg_rating', 'num_ratings']]
     )
@@ -126,7 +131,7 @@ def create_goodreads_oneliner(df_results):
 
 
 @_skip_if_empty
-def create_abebooks_oneliner(df_results):
+def _create_abebooks_oneliner(df_results):
     min_price, max_price, num_results = (
         df_results['price'].agg(['min', 'max', 'count']).astype('int')
     )
@@ -135,21 +140,26 @@ def create_abebooks_oneliner(df_results):
 
 
 @_skip_if_empty
-def create_kobo_oneliner(df_results):
+def _create_kobo_oneliner(df_results):
+    
     min_price, max_price, num_results = (
         df_results
+        .dropna(subset='reg_price')
         .sale_price
         .fillna(df_results.reg_price)
         .round(0)
         .astype('int')
         .agg(['min', 'max', 'count'])
     )
-    oneliner = f'${min_price}-{max_price} ({num_results})'
+    if min_price == max_price:
+        oneliner = f'${min_price} ({num_results})'
+    else:
+        oneliner = f'${min_price}-{max_price} ({num_results})'
     return oneliner
 
 
 @_skip_if_empty
-def create_bibliocommons_oneliner(df_results):
+def _create_bibliocommons_oneliner(df_results):
     formats_of_interest = ['book', 'ebook', 'audiobook', 'web-ebook']
     formats_available = set(formats_of_interest).intersection(df_results['true_format'])
     oneliner = ' | '.join(sorted(formats_available, key=formats_of_interest.index))
@@ -157,7 +167,7 @@ def create_bibliocommons_oneliner(df_results):
 
 
 @_skip_if_empty
-def create_abebooks_edmonton_oneliner(df_results):
+def _create_abebooks_edmonton_oneliner(df_results):
     oneliner = (
         df_results
         .query('seller_city=="Edmonton"')
