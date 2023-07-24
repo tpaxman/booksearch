@@ -27,6 +27,7 @@ app.layout = html.Div([
     html.H1(children='Book Prices', style={'textAlign':'center'}),
     dcc.Dropdown(df_source.searched.unique(), '', id='searched-dropdown'),
     dcc.Graph(id='price_histogram'),
+    dcc.Graph(id='price_bar'),
     dash_table.DataTable(
         id='summary_table',
         style_data={
@@ -41,6 +42,27 @@ app.layout = html.Div([
         },
     ),
 ])
+
+@callback(
+    Output('price_bar', 'figure'),
+    Input('searched-dropdown', 'value')
+)
+def update_histogram(value):
+    dff = df_source.loc[lambda t: t.searched.eq(value)]
+    upper_price = dff.price.max()
+    num_results = dff.shape[0]
+    dtick = math.ceil(upper_price / 50)
+    nbins = math.ceil(num_results / 6)
+    fig = px.bar(dff, y='price') #, range_x=[0, highest_price])
+    fig.update_layout(
+        bargap=0.2,
+        xaxis = dict(
+            tickmode = 'linear',
+            tick0 = 0,
+            dtick = dtick,
+        )
+    )
+    return fig
 
 @callback(
     Output('price_histogram', 'figure'),
