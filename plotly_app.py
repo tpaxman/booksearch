@@ -1,11 +1,11 @@
 import pathlib
-from dash import Dash, html, dcc, callback, Output, Input
+from dash import Dash, html, dcc, callback, Output, Input, dash_table
 import plotly.express as px
 import pandas as pd
 
 
 # IMPORT AND CLEAN DATA
-df = (
+df_source = (
     pd.concat(
         [
             pd.read_pickle(x).assign(searched=x.stem)
@@ -17,23 +17,36 @@ df = (
     .assign(searched = lambda t: t.searched.str.replace('abebooks - ', ''))
 )
 
-highest_price = df.price.max()
+highest_price = df_source.price.max()
 
 # START APP
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H1(children='Title of Dash App', style={'textAlign':'center'}),
-    dcc.Dropdown(df.searched.unique(), '', id='dropdown-selection'),
-    dcc.Graph(id='graph-content')
+    html.H1(children='Book Prices', style={'textAlign':'center'}),
+    dcc.Dropdown(df_source.searched.unique(), '', id='searched-dropdown'),
+    dcc.Graph(id='price_histogram'),
+    dash_table.DataTable(
+        id='summary_table',
+        style_data={
+            'whiteSpace': 'normal',
+            'height': 'auto',
+        },
+        style_as_list_view=True,
+        style_cell={'padding': '5px'},
+        style_header={
+            'backgroundColor': 'white',
+            'fontWeight': 'bold'
+        },
+    ),
 ])
 
 @callback(
-    Output('graph-content', 'figure'),
-    Input('dropdown-selection', 'value')
+    Output('price_histogram', 'figure'),
+    Input('searched-dropdown', 'value')
 )
-def update_graph(value):
-    dff = df[df.searched==value]
+def update_histogram(value):
+    dff = df_source.loc[lambda t: t.searched.eq(value)]
     fig = px.histogram(dff, x='price', nbins=25, range_x=[0, highest_price])
     fig.update_layout(
         bargap=0.2,
@@ -44,6 +57,22 @@ def update_graph(value):
         )
     )
     return fig
+
+
+@callback(
+    Output('summary_table', 'data'),
+    Input('searched-dropdown', 'value')
+)
+def update_summary_table(value):
+    data = (
+        df_source
+        .loc[lambda t: t.searched.eq(value)]
+        [['title', 'author', 'price', 'currency', 'binding', 'about', 'seller_name']]
+        .sort_values('price')
+        .to_dict('records')
+    )
+    return data
+
 
 if __name__ == '__main__':
     app.run(debug=True)
