@@ -33,8 +33,8 @@ def main():
 
     df_raw = pd.read_csv(input_file)
 
-    assert EXPECTED_INPUT_COLUMN_NAMES.issubset(df_raw.columns), (
-        'input_file must be CSV with columns ' + _quote_join(EXPECTED_INPUT_COLUMN_NAMES)
+    assert EXPECTED_COLNAMES.issubset(df_raw.columns), (
+        'input_file must be CSV with columns ' + _quote_join(EXPECTED_COLNAMES)
     )
 
     df_clean = df_raw.astype('string').fillna('')
