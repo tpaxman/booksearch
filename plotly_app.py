@@ -1,4 +1,5 @@
 import pathlib
+import math
 from dash import Dash, html, dcc, callback, Output, Input, dash_table
 import plotly.express as px
 import pandas as pd
@@ -17,7 +18,7 @@ df_source = (
     .assign(searched = lambda t: t.searched.str.replace('abebooks - ', ''))
 )
 
-highest_price = df_source.price.max()
+#highest_price = df_source.price.max()
 
 # START APP
 app = Dash(__name__)
@@ -47,13 +48,17 @@ app.layout = html.Div([
 )
 def update_histogram(value):
     dff = df_source.loc[lambda t: t.searched.eq(value)]
-    fig = px.histogram(dff, x='price', nbins=25, range_x=[0, highest_price])
+    upper_price = dff.price.max()
+    num_results = dff.shape[0]
+    dtick = math.ceil(upper_price / 50)
+    nbins = math.ceil(num_results / 6)
+    fig = px.histogram(dff, x='price', nbins=nbins) #, range_x=[0, highest_price])
     fig.update_layout(
         bargap=0.2,
         xaxis = dict(
             tickmode = 'linear',
             tick0 = 0,
-            dtick = 50,
+            dtick = dtick,
         )
     )
     return fig
