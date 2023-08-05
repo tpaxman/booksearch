@@ -46,8 +46,6 @@ def main():
     print_url = args.print_url
 
     assert not (_filter and not source), 'must specify source-level view to apply filters'
-    # TODO: make this flexible for printing all urls instead at smoe point
-    assert not (print_url and not source), 'must specify source-level view to do url print'
     
     if source:
         if print_url:
@@ -71,8 +69,19 @@ def main():
         print(df_selected)
 
     else:
-        display_string = _form_oneliners(author=author, title=title, keywords=keywords)
-        print(display_string)
+        if print_url:
+            composers = {s: api.generate_compose_search_url(s) for s in VALID_SOURCES}
+            urls = {
+                s: composer(author=author, title=title, keywords=keywords)
+                for s, composer in composers.items()
+            }
+            urls_string = '\n'.join(urls.values())
+            print(urls_string)
+        else:
+            display_string = _form_oneliners(
+                author=author, title=title, keywords=keywords
+            )
+            print(display_string)
             
 
 def _form_oneliners(author, title, keywords) -> str:
@@ -97,10 +106,13 @@ def _form_oneliners(author, title, keywords) -> str:
     }
 
     display_string = '\n'.join(
-        s.upper()[:3] + ': ' + (oneliner if oneliner else '--')
+        s.upper()[:3] 
+        + ': ' 
+        + (oneliner if oneliner else '--')
         for s, oneliner in oneliners.items()
     )
     
+
     return display_string
 
 

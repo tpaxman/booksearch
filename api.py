@@ -67,8 +67,8 @@ def download(url):
 
 def _generate_is_subset(search_string: str) -> Callable:
     def _is_subset(main_string: str) -> bool:
-        main_string_parts = set(re.findall(r'\w+', main_string.lower()))
-        search_string_parts = set(re.findall(r'\w+', search_string.lower()))
+        main_string_parts = set(re.findall(r'\w+', main_string.lower() if main_string else ''))
+        search_string_parts = set(re.findall(r'\w+', search_string.lower() if search_string else ''))
         return search_string_parts.issubset(main_string_parts)
     return _is_subset
 
