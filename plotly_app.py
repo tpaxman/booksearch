@@ -19,29 +19,11 @@ df_source = (
     .assign(searched = lambda t: t.searched.str.replace('abebooks - ', '').str.replace(' - ', '-'))
 )
 
-#highest_price = df_source.price.max()
+max_price = df_source.price.max()
+
 
 # START APP
 app = Dash(__name__)
-
-
-static_fig = fig = px.scatter(
-    df_source,
-    x='price',
-    y='searched',
-    color='signed',
-    hover_data=['title', 'author', 'seller_name', 'seller_city', 'seller_country', 'binding'],
-    width=1200,
-    height=2000,
-) #, range_x=[0, highest_price])
-
-static_fig.update_layout(
-    xaxis = dict(
-        tickmode = 'linear',
-        tick0 = 0,
-        dtick = 100,
-    )
-)
 
 
 app.layout = html.Div([
@@ -62,8 +44,67 @@ app.layout = html.Div([
             'fontWeight': 'bold'
         },
     ),
-    dcc.Graph(id='static_graph', figure=static_fig)
+    dcc.RangeSlider(min=0, max=max_price, step=50, value=[0, max_price], id='price-range'),
+    dcc.Graph(id='summary-graph')
 ])
+
+
+@callback(
+    Output('summary-graph', 'figure'),
+    Input('price-range', 'value')
+)
+def update_summary(value):
+    min_filter_value = value[0]
+    max_filter_value = value[1]
+    df_maxes = (
+        df_source
+        .groupby('searched')['price']
+        .agg(
+            min_price='min',
+            avg_price='mean',
+            max_price='max',
+        )
+        .dropna()
+        .loc[lambda t: (min_filter_value < t.max_price) & (t.max_price < max_filter_value)]
+        .reset_index()
+        .head(25) # TODO: make this variable
+    )
+
+    dff = df_source.merge(df_maxes, how='inner', on='searched').sort_values('avg_price', ascending=False)
+
+    fig = px.scatter(
+        dff,
+        x='price',
+        y='searched',
+        color='signed',
+        hover_data=['title', 'author', 'seller_name', 'seller_city', 'seller_country', 'binding'],
+        width=1000,
+        height=600,
+    ) #, range_x=[0, highest_price])
+
+    x_dtick = (
+        1 if max_filter_value <= 20 else
+        5 if max_filter_value <= 50 else
+        10 if max_filter_value <= 300 else
+        25 if max_filter_value <= 600 else
+        50 if max_filter_value <= 1000 else
+        100
+    )
+
+    fig.update_layout(
+        xaxis = dict(
+            tickmode = 'linear',
+            tick0 = 0,
+            dtick = x_dtick,
+        ),
+        yaxis = dict(
+            dtick = 1,
+        )
+    )
+
+    return fig
+
+
 
 
 @callback(
